@@ -48,6 +48,25 @@ html = html.replace('<head>', '<head>\n<script>window.XY_STANDALONE=true;</scrip
 fs.mkdirSync(path.dirname(outFile), { recursive: true });
 fs.writeFileSync(outFile, html);
 
+/* ---------------------------------------------------------------------------
+ *  A second output for hosts that supply their own <!doctype>/<head>/<body>
+ *  wrapper and only accept page content. Same inlined payload, just without
+ *  the outer document.
+ * ------------------------------------------------------------------------ */
+const pick = (re) => (html.match(re) || [])[1] || '';
+const title = pick(/<title>([\s\S]*?)<\/title>/i);
+const styles = (html.match(/<style>[\s\S]*?<\/style>/gi) || []).join('\n');
+const bodyInner = pick(/<body[^>]*>([\s\S]*)<\/body>/i);
+
+const fragment = [
+  `<title>${title}</title>`,
+  '<script>window.XY_STANDALONE=true;</script>',
+  styles,
+  bodyInner.trim(),
+].join('\n');
+
+fs.writeFileSync(path.join(root, 'dist', 'xyla-invite.fragment.html'), fragment);
+
 /* ---- assert the output really is self-contained ---- */
 const problems = [];
 const externals = html.match(/(?:src|href)\s*=\s*["'](?!#|data:|mailto:|tel:)([a-z]+:)?\/\/[^"']+/gi);
