@@ -1,0 +1,18 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Hero Lab</title>
+<style>body{margin:0;background:linear-gradient(180deg,#241B52,#5B4B9E 55%,#FF8FB1);
+display:grid;place-items:center;height:100vh}
+.wrap{width:min(70vmin,700px)}svg{width:100%;height:auto;overflow:visible}</style></head>
+<body><div class="wrap" id="w"></div>
+<script src="vendor/gsap/gsap.min.js"></script>
+<script src="config.js"></script>
+<script src="js/core.js"></script>
+<script src="js/palette.js"></script>
+<script src="js/creature.js"></script>
+<script src="js/hero.js"></script>
+<script>
+ var hat = XY.params.hat !== '0';
+ var h = XY.Hero.renderPhoto({ src: XY.CONFIG.PHOTOS.hero, hat: hat });
+ document.getElementById('w').appendChild(h.svg);
+ h.svg.addEventListener('load', function(){ document.title='ready'; });
+ setTimeout(function(){ document.title='ready'; }, 800);
+</script></body></html>

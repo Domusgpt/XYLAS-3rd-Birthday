@@ -653,7 +653,9 @@
     opts = opts || {};
     var dur = opts.duration || 0.9;
     var target = spec(newGenome);
-    var tl = gsap.timeline();
+    /* `paused` lets a caller add this to the master timeline instead of
+       playing it immediately — which is what makes the morph scrubbable. */
+    var tl = gsap.timeline({ paused: !!opts.paused });
 
     /* anticipation: squash down, then spring out */
     tl.to(c.body, { scaleY: 0.7, scaleX: 1.24, duration: 0.18, ease: 'power2.in',
@@ -773,6 +775,13 @@
     SLOTS: SLOTS, KITS: KITS, GEO: GEO,
     genome: genome, spec: spec, render: render,
     morphTo: morphTo, animate: animate, react: react,
+    /* Exposed so the photo hero can wear the same generated pirate hat the
+       drawn crew wears — one hat design, used in both places. */
+    shapes: {
+      tricornPath: tricornPath, tricornTrim: tricornTrim,
+      crossbones: crossbones, lemonPath: lemonPath, plumePath: plumePath,
+      mouthPath: mouthPath, bandanaPath: bandanaPath,
+    },
   };
 
 })(window.XY = window.XY || {});

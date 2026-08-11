@@ -38,11 +38,18 @@
     var where = XY.esc(p.venue) +
       (p.address ? '<span class="sub">' + XY.esc(p.address) + '</span>' : '');
 
+    var medallion = (C.PHOTOS && C.PHOTOS.medallion)
+      ? '<div class="medallion"><img src="' + XY.esc(C.PHOTOS.medallion) +
+        '" alt="Xyla, wearing enormous sunglasses" width="420" height="420" decoding="async"></div>'
+      : '';
+
     el.innerHTML =
       '<div class="card-deco" aria-hidden="true"></div>' +
+      medallion +
       '<p class="eyebrow">You are invited to</p>' +
       '<h1 class="title">' + XY.esc(child.name) + '’s <em>' + child.age + 'rd</em> Birthday</h1>' +
-      '<p class="lede">A butterfly-pirate-robot-dinosaur party, somewhere past the Lemon Sea.</p>' +
+      '<p class="lede">A butterfly-pirate-robot-dinosaur <strong>pool party</strong>, ' +
+        'somewhere past the Lemon Sea.</p>' +
       '<dl class="details">' +
         fieldRow('When', when, 'row-when') +
         fieldRow('Where', where, 'row-where') +

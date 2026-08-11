@@ -19,14 +19,23 @@
 
   var path = XY.path;
 
+  /* Each act carries the line of story that goes with it. A storybook without
+     any words is just a slideshow. */
   var ACTS = [
-    { key: 'cover',  at: 0,    sky: 'cover',  label: 'Once upon a time' },
-    { key: 'sea',    at: 6,    sky: 'sea',    label: 'The Lemon Sea' },
-    { key: 'morph',  at: 13.5, sky: 'morph',  label: 'The Changing' },
-    { key: 'clouds', at: 21,   sky: 'clouds', label: 'Cloud Kingdom' },
-    { key: 'fleet',  at: 27,   sky: 'fleet',  label: 'The Fleet' },
-    { key: 'planet', at: 34.5, sky: 'planet', label: 'Party Planet' },
-    { key: 'invite', at: 41,   sky: 'invite', label: 'You’re Invited' },
+    { key: 'cover',  at: 0,    sky: 'cover',  label: 'Once upon a time',
+      line: '' },
+    { key: 'sea',    at: 6,    sky: 'sea',    label: 'The Lemon Sea',
+      line: 'Captain Xyla set sail across the Lemon Sea…' },
+    { key: 'morph',  at: 13.5, sky: 'morph',  label: 'The Changing',
+      line: '…and one by one, her crew began to change.' },
+    { key: 'clouds', at: 21,   sky: 'clouds', label: 'Cloud Kingdom',
+      line: 'Up and up they climbed, past the clouds.' },
+    { key: 'fleet',  at: 27,   sky: 'fleet',  label: 'The Fleet',
+      line: 'Then the saucers came down to fetch them.' },
+    { key: 'planet', at: 34.5, sky: 'planet', label: 'Party Planet',
+      line: 'And there it was. The party at the top of the sky.' },
+    { key: 'invite', at: 41,   sky: 'invite', label: 'You’re Invited',
+      line: 'Xyla is turning three. Come and find her.' },
   ];
   var END = 47;
 
@@ -62,6 +71,30 @@
       out.push(XY.svgEl('path', { d: puffs.join(' '), fill: fill, opacity: op }));
     }
     return out;
+  }
+
+  /* A field of stars and sparkles for the layer furthest back. Static SVG
+     rather than a canvas: it never redraws, it parallaxes for free with its
+     layer, and it costs one paint. */
+  function buildStars(el, rand) {
+    var svg = sceneSVG('scene-stars');
+    var dots = [], sparks = [];
+    for (var i = 0; i < 90; i++) {
+      var x = rand.range(-40, 1040), y = rand.range(-30, 480);
+      var r = rand.range(1.1, 2.9);
+      dots.push(path.blob(x, y, r, r, { points: 14, wobble: 0 }));
+    }
+    for (var j = 0; j < 14; j++) {
+      sparks.push(path.star(rand.range(0, 1000), rand.range(0, 420),
+                            rand.range(5, 11), rand.range(1.6, 3.4), 4, rand.range(0, 1)));
+    }
+    svg.appendChild(XY.svgEl('path', { d: dots.join(' '), fill: '#FFFFFF', opacity: 0.55 }));
+    var sp = XY.svgEl('path', { d: sparks.join(' '), fill: '#FFF8EE', opacity: 0.8 });
+    svg.appendChild(sp);
+    el.appendChild(svg);
+    /* a slow, gentle twinkle — well under the 3Hz photosensitivity ceiling */
+    gsap.to(sp, { opacity: 0.3, duration: 2.6, repeat: -1, yoyo: true, ease: 'sine.inOut' });
+    return svg;
   }
 
   function buildFar(el, rand) {
@@ -147,6 +180,7 @@
       low:  { cast: 5, fleet: 3 },
     }[this.quality];
 
+    if (R.stars) buildStars(R.stars, rand);
     buildFar(R.far, rand);
     this.mid = buildMid(R.mid, rand);
 
@@ -197,9 +231,15 @@
       this.fleet.push(u);
     }
 
-    /* ---- Captain Xyla ---- */
-    var h = XY.Hero.render({ hat: true });
-    var hhost = XY.el('div', { class: 'actor actor-hero' });
+    /* ---- Captain Xyla ----
+       The real photograph when one is configured, the drawn cartoon otherwise.
+       Keeping the cartoon path alive means a missing or broken asset degrades
+       to something charming instead of to an empty hole. */
+    var photoSrc = (XY.CONFIG.PHOTOS || {}).hero;
+    var h = photoSrc
+      ? XY.Hero.renderPhoto({ src: photoSrc, hat: true })
+      : XY.Hero.render({ hat: true });
+    var hhost = XY.el('div', { class: 'actor actor-hero' + (photoSrc ? ' is-photo' : '') });
     hhost.appendChild(h.svg);
     hhost.style.left = '50%';
     hhost.style.top = '46%';
@@ -208,7 +248,7 @@
     gsap.set(R.three, { xPercent: -50, autoAlpha: 0 });
     R.cast.appendChild(hhost);
     h.host = hhost;
-    XY.Hero.animate(h);
+    (h.isPhoto ? XY.Hero.animatePhoto : XY.Hero.animate)(h);
     this.hero = h;
 
     return this;
@@ -253,15 +293,21 @@
     });
 
     /* ---------------- ACT 2 — the Changing ----------------
-       The centrepiece: each crew member morphs into a different hybrid. */
+       The centrepiece: each crew member morphs into a different hybrid.
+
+       These morph timelines are built now and ADDED to master, rather than
+       being created at runtime inside a tl.call(). GSAP suppresses callbacks
+       when a timeline is seeked, so the callback version meant the single most
+       important moment in the piece was invisible to anyone who dragged the
+       scrubber — and invisible to the screenshot harness too. As real tweens
+       they scrub both directions like everything else. */
     this.cast.forEach(function (c, i) {
       var at = 14 + i * 0.5;
-      tl.call(function () {
-        if (self.reduced) return;
-        var ng = XY.Creature.genome(c.genome.seed + ':m', {});
-        XY.Creature.morphTo(c, ng);
-        self.onMorph && self.onMorph(c);
-      }, null, at);
+      var ng = XY.Creature.genome(c.genome.seed + ':m', {});
+      tl.add(XY.Creature.morphTo(c, ng, { paused: true }), at);
+      /* the confetti puff stays a callback — it is decoration, and firing a
+         particle burst while scrubbing backwards would be nonsense */
+      tl.call(function () { self.onMorph && self.onMorph(c); }, null, at + 0.2);
       /* a little hop on the beat, which is staging, so it lives on master */
       tl.to(c.host, { y: -26, duration: 0.3, ease: 'power2.out' }, at);
       tl.to(c.host, { y: 0, duration: 0.7, ease: 'bounce.out' }, at + 0.3);
@@ -319,6 +365,28 @@
         duration: 1.6, ease: 'power2.inOut'
       }, 35.6 + i * 0.08);
     });
+
+    /* ---------------- NARRATION ----------------
+       One line per act, set as a tween rather than a callback so that
+       scrubbing lands on the right sentence. */
+    if (R.narration) {
+      /* One span per act, all stacked and individually faded. Swapping the
+         text of a single element would need either TextPlugin or a callback,
+         and callbacks do not fire while scrubbing — this way every line is a
+         plain tween and lands correctly in both directions. */
+      ACTS.forEach(function (a, i) {
+        if (!a.line) return;
+        var span = XY.el('span', { class: 'narration-line' });
+        span.textContent = a.line;
+        R.narration.appendChild(span);
+        gsap.set(span, { autoAlpha: 0 });
+        var next = ACTS[i + 1];
+        var out = next ? Math.min(next.at - 0.5, a.at + 5.5) : END - 0.6;
+        tl.fromTo(span, { autoAlpha: 0, y: 14 },
+          { autoAlpha: 1, y: 0, duration: 0.6, ease: 'power2.out' }, a.at + 0.4);
+        tl.to(span, { autoAlpha: 0, y: -10, duration: 0.5, ease: 'power2.in' }, out);
+      });
+    }
 
     /* ---------------- ACT 6 — the invitation ---------------- */
     tl.to([this.hero.host, R.three], { y: -40, scale: 0.78, duration: 1.2, ease: 'power2.inOut' }, 41);

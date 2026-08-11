@@ -147,6 +147,33 @@ async function main() {
     })()`,
     returnByValue: true,
   });
+  /* ---- did the photos actually load? ----
+     A broken <image> inside SVG renders as nothing at all, with no console
+     error — so without this check a build that lost its assets would sail
+     through every other test and ship looking merely "empty". */
+  const assets = await send('Runtime.evaluate', {
+    expression: `(async function(){
+      const probe = (src) => new Promise((res) => {
+        if (!src) return res('missing-src');
+        const i = new Image();
+        i.onload = () => res(i.naturalWidth > 0 ? 'ok' : 'zero-width');
+        i.onerror = () => res('load-error');
+        i.src = src;
+      });
+      const svgImg = document.querySelector('[data-slot="photo"]');
+      const cardImg = document.querySelector('.medallion img');
+      return JSON.stringify({
+        hero: svgImg ? await probe(svgImg.getAttribute('href')) : 'no-element',
+        medallion: cardImg ? await probe(cardImg.getAttribute('src')) : 'no-element',
+      });
+    })()`,
+    awaitPromise: true, returnByValue: true,
+  });
+  const a = JSON.parse(assets.result.value);
+  console.log('  photos:', assets.result.value);
+  if (a.hero !== 'ok') consoleErrors.push(`hero photo did not load: ${a.hero}`);
+  if (a.medallion !== 'ok') consoleErrors.push(`medallion photo did not load: ${a.medallion}`);
+
   const o = JSON.parse(overflow.result.value);
   console.log('  layout@390:', overflow.result.value);
   if (o.docW > o.vw + 1) consoleErrors.push(`horizontal overflow: document ${o.docW}px in a ${o.vw}px viewport`);

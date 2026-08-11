@@ -47,6 +47,7 @@
     var R = {
       stage:  document.getElementById('stage'),
       sky:    document.getElementById('sky-canvas'),
+      stars:  document.getElementById('l-stars'),
       far:    document.getElementById('l-far'),
       mid:    document.getElementById('l-mid'),
       fleet:  document.getElementById('l-fleet'),
@@ -61,6 +62,7 @@
       controls: document.getElementById('controls'),
       chapters: document.getElementById('chapters'),
       scrub:  document.getElementById('scrubber'),
+      narration: document.getElementById('narration'),
     };
 
     /* ---- the invitation itself, rendered first so it always exists ---- */
@@ -81,7 +83,7 @@
     /* ---- parallax ---- */
     var parallax = new XY.Parallax({ amp: window.innerWidth < 620 ? 26 : 44 });
     parallax.bind(R.stage);
-    parallax.add(document.getElementById('l-stars'), 0.06);
+    parallax.add(R.stars, 0.06);
     parallax.add(R.far, 0.14);
     parallax.add(R.mid, 0.3);
     parallax.add(R.fleet, 0.5);

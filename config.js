@@ -18,19 +18,28 @@ window.XY.CONFIG = {
 
   /* ---- The party -------------------------------------------------------- */
   PARTY: {
-    dateDisplay: 'Date here',            // e.g. 'Saturday, September 13th'
-    timeDisplay: 'Time here',            // e.g. '11:00am – 2:00pm'
+    dateDisplay: 'Friday, August 28th',
+    timeDisplay: '3:00pm ’til the sun goes down',
     venue: 'Place here',                 // e.g. 'The Big Backyard'
     address: 'Address here',             // e.g. '12 Lemon Grove Ln, Somewhere'
-    bring: 'What to bring here',         // e.g. 'A swimsuit and a towel'
-    notes: 'Notes here',                 // e.g. 'Wear something you can get sandy in'
-    rsvpByDisplay: 'RSVP by date here',  // e.g. 'RSVP by September 1st'
+    bring: 'Swimsuit, towel, and your best pirate face',
+    notes: 'Notes here',                 // e.g. 'There will be cake'
+    rsvpByDisplay: 'RSVP by date here',  // e.g. 'RSVP by August 21st'
 
     /* For the "Add to calendar" button. Leave both null and the button
        politely hides itself until you know the real date.
        Format: 'YYYY-MM-DDTHH:MM'  (local time, no timezone, no Z)          */
-    startISO: null,                      // e.g. '2026-09-13T11:00'
-    endISO: null,                        // e.g. '2026-09-13T14:00'
+    startISO: '2026-08-28T15:00',
+    endISO: '2026-08-28T18:00',          // a guess, only used by the .ics file
+  },
+
+  /* ---- Photos -----------------------------------------------------------
+   * Real photos of Xyla, background removed. Set either to '' and the page
+   * falls back to the drawn cartoon version of her — nothing breaks.
+   * Regenerate them with:  node tools/process-photos.mjs                    */
+  PHOTOS: {
+    hero: 'assets/xyla-hero.webp',           // she flies, with drawn wings
+    medallion: 'assets/xyla-medallion.webp', // the portrait on the card
   },
 
   /* ---- RSVP: how replies reach Mom -------------------------------------- */

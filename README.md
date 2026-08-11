@@ -5,7 +5,8 @@ An animated storybook invitation to Xyla's 3rd birthday party.
 Butterfly-pirates, robo-dinos and dino-butterflies sail the Lemon Sea, morph into
 each other mid-flight, get abducted by a fleet of flying saucers, and finally
 deliver the party details. Every creature, saucer, wave and cloud is **generated
-in code** — there is not a single image file in this repository.
+in code** — the only images anywhere in this project are two real photos of Xyla
+herself, cut out and composited into the story.
 
 ---
 
@@ -15,16 +16,19 @@ Open **`config.js`**. Everything is in there, at the top, in plain language:
 
 ```js
 PARTY: {
-  dateDisplay: 'Date here',        // 'Saturday, September 13th'
-  timeDisplay: 'Time here',        // '11:00am – 2:00pm'
-  venue:       'Place here',
-  address:     'Address here',
+  dateDisplay: 'Friday, August 28th',
+  timeDisplay: '3:00pm ’til the sun goes down',
+  venue:       'Place here',       // ← still to fill in
+  address:     'Address here',     // ← still to fill in
   ...
 },
 RSVP: {
   to: 'mom@example.com',           // ← where replies go
 }
 ```
+
+**Still to fill in:** venue, address, the RSVP-by date, and your wife's real
+email address in `RSVP.to`.
 
 Anything you leave as `"... here"` shows up on the card as a deliberate-looking
 blank rather than something broken, so you can share a draft today.
@@ -69,7 +73,7 @@ makes it public, and uploads with sensible cache headers. Re-run it any time you
 change the details. You need `gcloud` installed and logged in.
 
 There is also a **single self-contained file** at `dist/xyla-invite.html`
-(~240 KB) with the fonts, styles, scripts and GSAP all inlined and zero external
+(~440 KB) with the styles, scripts, photos and GSAP all inlined and zero external
 requests. Email it, drop it on any host, or open it straight off a USB stick — it
 works offline and forever. Rebuild it with `node tools/build.js`.
 
@@ -98,6 +102,7 @@ Handy URL switches while developing:
 | `?nogl=1` | Force the no-WebGL fallback sky. |
 | `?calm=1` | Force the reduced-motion path. |
 | `lab.html` | Contact sheet of generated creatures. |
+| `herolab.html` | The photo hero on its own, for tuning wings and hat. |
 | `morphlab.html` | Morph intermediates, frozen at 0 / 25 / 50 / 75 / 100%. |
 
 ### How it is put together
@@ -126,7 +131,9 @@ Two ideas carry the whole thing:
 
 ### House rules
 
-- **No image files, ever.** Everything is generated from numbers.
+- **All art is generated from numbers.** The only bitmaps are the two photos of
+  Xyla; every creature, wave, cloud, saucer and hat is drawn parametrically at
+  runtime.
 - **No SVG blur filters.** Glow is stacked translucent shapes. Blur filters are
   the single worst source of jank on phones.
 - **Nothing flickers faster than ~3Hz.** A page this bright will be looked at by
@@ -148,13 +155,31 @@ when the party is.
 
 ---
 
-### About Captain Xyla
+### The photos of Xyla
 
-The hero character is a stylised cartoon built from three cues in a photo her dad
-shared — a mane of curls, enormous round sunglasses, and a lemon-print dress. It
-is deliberately not a likeness, and the photo itself is not in this repository
-and was never uploaded anywhere. The whole colour palette comes from that
-swimsuit: lemon yellow, teal leaves, blush pink, and a near-white lilac.
+Two real photos are used: she flies at the reveal with generated butterfly wings
+and a pirate tricorn drawn around her, and a portrait medallion sits at the top
+of the invitation card.
+
+The backgrounds were removed with a real segmentation model (BRIA RMBG-1.4 via
+Transformers.js) run **entirely on the local machine** inside headless Chromium —
+the photographs were never uploaded to any service. Rebuild the assets with:
+
+```bash
+node tools/process-photos.mjs   # downloads model weights on first run
+node tools/build.js
+```
+
+Set `PHOTOS.hero` or `PHOTOS.medallion` to `''` in `config.js` and the page falls
+back to a fully drawn cartoon version of her, so a missing asset degrades to
+something charming rather than to a hole.
+
+The whole colour palette comes from her lemon-print swimsuit: lemon yellow, teal
+leaves, blush pink, and a near-white lilac.
+
+> **This repository should stay private.** It contains photographs of a small
+> child. Anyone with the link to the published invitation can see them too, which
+> is the point — but a public git repository is a different thing entirely.
 
 ### Credits
 
