@@ -170,6 +170,19 @@
     this.fleet = [];
     this.hero = null;
     this.actIndex = { v: 0 };
+    /* The camera. Tweened on master like any other property, and read by the
+       ticker in main.js — so every push, pull and re-frame scrubs exactly. */
+    this.cam = { zoom: 1, fx: 0, fy: 0 };
+  }
+
+  /* Where the camera has to sit to put a point at (xPc, yPc) of the viewport
+     in the middle of the frame. Same arithmetic Act 5's gather uses, kept in
+     one place. Positive fx moves the world left, i.e. the camera right. */
+  function focusOffset(xPc, yPc) {
+    return {
+      fx: (xPc - 50) / 100 * window.innerWidth,
+      fy: (yPc - 50) / 100 * window.innerHeight,
+    };
   }
 
   Stage.prototype.build = function () {
@@ -199,7 +212,10 @@
       /* spread the crew across the stage, arcing gently upward at the edges */
       var t = (i + 0.5) / counts.cast;
       var x = 6 + t * 82;
-      var y = 52 + Math.sin(t * Math.PI) * 14 + rand.range(-5, 5);
+      /* The crew sits in the upper-middle band. It used to start at 52% and
+         arc down, which pushed the outer members into the narration and the
+         controls once the camera started zooming. */
+      var y = 42 + Math.sin(t * Math.PI) * 11 + rand.range(-4, 4);
       host.style.left = x.toFixed(2) + '%';
       host.style.top = y.toFixed(2) + '%';
       host.style.zIndex = String(10 + Math.round(y));
@@ -211,6 +227,14 @@
       c.note = i % XY.SCALE_LEN;
       XY.Creature.animate(c);
       this.cast.push(c);
+    }
+
+    /* ---- pair the crew up so they play with each other ----
+       Neighbours, because two creatures at opposite ends of the stage leaning
+       towards each other reads as a glitch rather than a game. An odd one out
+       is left to its own devices, which is fine — it just breathes. */
+    for (var q = 0; q + 1 < this.cast.length; q += 2) {
+      XY.Creature.play(this.cast[q], this.cast[q + 1], seedBase);
     }
 
     /* ---- the fleet ---- */
@@ -242,7 +266,9 @@
     var hhost = XY.el('div', { class: 'actor actor-hero' + (photoSrc ? ' is-photo' : '') });
     hhost.appendChild(h.svg);
     hhost.style.left = '50%';
-    hhost.style.top = '46%';
+    /* High enough that at her new size — and under the Act 5 push-in — her
+       feet stay above the narration plate instead of running off the bottom. */
+    hhost.style.top = '33%';
     hhost.style.zIndex = '90';
     gsap.set(hhost, { xPercent: -50, autoAlpha: 0, scale: 0.4 });
     gsap.set(R.three, { xPercent: -50, autoAlpha: 0 });
@@ -269,6 +295,55 @@
        callbacks, so scrubbing backwards works exactly as well as forwards. */
     tl.to(this.actIndex, { v: ACTS.length - 1, duration: END, ease: 'none' }, 0);
 
+    /* ---------------- THE CAMERA ----------------
+       Every move is a tween on `this.cam`, which the ticker reads. Nothing
+       here is a callback, so the camera is in the right place at every point
+       of a scrub, in both directions — the same reason the morphs and the
+       narration are tweens rather than calls.
+
+       `focusOffset` centres a point given as a percentage of the viewport.
+       Actors are positioned as a percentage of their layer (which bleeds 8%
+       past the viewport), so `actorCentre` converts one to the other and adds
+       half the actor's own box to aim at its middle rather than its corner. */
+    var cam = this.cam;
+    function actorCentre(host, homeX, homeY) {
+      var xPc = -8 + homeX * 1.16 + (host.offsetWidth  / vw) * 50;
+      var yPc = -8 + homeY * 1.16 + (host.offsetHeight / vh) * 50;
+      return focusOffset(xPc, yPc);
+    }
+    /* Push the camera to `zoom`, centred on `f` ({fx, fy}), arriving at `at`. */
+    function camTo(zoom, f, at, dur, ease) {
+      tl.to(cam, {
+        zoom: zoom, fx: f.fx, fy: f.fy,
+        duration: dur, ease: ease || 'power2.inOut',
+      }, at);
+    }
+    var CENTRE = { fx: 0, fy: 0 };
+
+    /* Act 0 — wide and still. Nothing to look at yet but the title. */
+    tl.set(cam, { zoom: 1, fx: 0, fy: 0 }, 0);
+    /* Act 1 — a slow drift right with the ship as it crosses. */
+    camTo(1.16, focusOffset(58, 62), 6.2, 4.5, 'sine.inOut');
+    /* Act 2 — the close-ups the centrepiece never had. The camera steps from
+       creature to creature as each one changes, then eases back out. */
+    this.cast.forEach(function (c, i) {
+      if (i > 4) return;                       // the first five, then release
+      camTo(1.5, actorCentre(c.host, c.homeX, c.homeY), 13.8 + i * 1.0, 0.9);
+    });
+    /* Act 3 — pull all the way back for the climb. The release. */
+    camTo(1.0, CENTRE, 20.6, 2.6, 'power2.out');
+    /* Act 4 — rise to the fleet, then tilt back down as the beams reach. */
+    camTo(1.28, focusOffset(50, 30), 27.0, 2.4);
+    camTo(1.14, focusOffset(50, 52), 31.0, 2.2);
+    /* Act 5 — the big push onto Xyla, and hold her huge. */
+    /* A gentler push than the other acts get. She is already enormous in CSS
+       terms, and anything past ~1.15 here scales the "3rd BIRTHDAY" clean off
+       the top of the frame — layers zoom about the middle, so content near the
+       edge travels furthest. */
+    camTo(1.15, focusOffset(50, 44), 34.6, 1.8, 'power3.out');
+    /* Act 6 — ease back so the invitation has room to land. */
+    camTo(1.08, CENTRE, 40.6, 1.8, 'power2.inOut');
+
     /* ---------------- ACT 0 — the cover ---------------- */
     var title = R.title;
     tl.fromTo(title.querySelectorAll('.kicker'),
@@ -279,17 +354,27 @@
         ease: 'back.out(1.7)', stagger: 0.13 }, 0.5);
     tl.fromTo(title.querySelectorAll('.sub'),
       { autoAlpha: 0, y: 16 }, { autoAlpha: 1, y: 0, duration: 0.8 }, 1.4);
+    /* the facts land almost immediately after the title — this is the beat
+       that turns a nice animation into an invitation */
+    tl.fromTo(title.querySelectorAll('.cover-facts'),
+      { autoAlpha: 0, y: 22, scale: 0.94 },
+      { autoAlpha: 1, y: 0, scale: 1, duration: 0.8, ease: 'back.out(1.5)' }, 1.9);
 
     /* ---------------- ACT 1 — the Lemon Sea ---------------- */
     tl.to(title, { autoAlpha: 0, y: -50, scale: 0.9, duration: 1.0, ease: 'power2.in' }, 5.4);
     /* the ship sails in and rocks */
     tl.fromTo(this.ship, { x: -520, y: 380, rotation: -3 },
       { x: 340, duration: 4.2, ease: 'power1.inOut' }, 5.8);
+    /* a real rock on the swell, rather than sliding across like a decal */
+    tl.to(this.ship, { rotation: 3.5, duration: 1.35, repeat: 3, yoyo: true,
+                       ease: 'sine.inOut', transformOrigin: '100px 90px' }, 5.8);
     /* the crew lifts off the rigging, one after another */
     this.cast.forEach(function (c, i) {
+      /* dip before the rise — anticipation is what makes an entrance land */
+      tl.to(c.host, { y: 74, duration: 0.16, ease: 'power2.in' }, 7.06 + i * 0.24);
       tl.to(c.host, {
-        autoAlpha: 1, y: 0, scale: 1, duration: 0.9, ease: 'back.out(1.5)'
-      }, 7.2 + i * 0.24);
+        autoAlpha: 1, y: 0, scale: 1, duration: 0.95, ease: 'back.out(2.2)'
+      }, 7.22 + i * 0.24);
     });
 
     /* ---------------- ACT 2 — the Changing ----------------
@@ -305,12 +390,24 @@
       var at = 14 + i * 0.5;
       var ng = XY.Creature.genome(c.genome.seed + ':m', {});
       tl.add(XY.Creature.morphTo(c, ng, { paused: true }), at);
-      /* the confetti puff stays a callback — it is decoration, and firing a
-         particle burst while scrubbing backwards would be nonsense */
-      tl.call(function () { self.onMorph && self.onMorph(c); }, null, at + 0.2);
+      /* the confetti puff and the camera knock stay callbacks — they are
+         impulses, and firing them while scrubbing backwards would be nonsense */
+      tl.call(function () {
+        self.onMorph && self.onMorph(c);
+        XY.shake && XY.shake(6, 0.25);
+      }, null, at + 0.2);
       /* a little hop on the beat, which is staging, so it lives on master */
       tl.to(c.host, { y: -26, duration: 0.3, ease: 'power2.out' }, at);
       tl.to(c.host, { y: 0, duration: 0.7, ease: 'bounce.out' }, at + 0.3);
+
+      /* A SECOND wave, on a different rhythm and running the other way down
+         the line. One pass read as a single scripted event; two passes read as
+         something spreading through the crew, which is the actual story. */
+      var at2 = 17.6 + (self.cast.length - 1 - i) * 0.34;
+      var ng2 = XY.Creature.genome(c.genome.seed + ':m2', {});
+      tl.add(XY.Creature.morphTo(c, ng2, { paused: true, duration: 0.7 }), at2);
+      tl.to(c.host, { y: -18, duration: 0.24, ease: 'power2.out' }, at2);
+      tl.to(c.host, { y: 0, duration: 0.6, ease: 'bounce.out' }, at2 + 0.24);
     });
 
     /* ---------------- ACT 3 — the climb ----------------
@@ -324,40 +421,76 @@
       tl.to(c.host, { y: -vh * 0.08, duration: 3, ease: 'sine.inOut' }, 21.5 + i * 0.1);
     });
 
-    /* ---------------- ACT 4 — the fleet arrives ---------------- */
+    /* ---------------- ACT 4 — the fleet arrives ----------------
+       Each saucer is paired with a crew member and beams THAT ONE, so the
+       beams have something to land on. `u.target` is what the aiming pass in
+       main.js reads every frame while a beam is lit. */
     this.fleet.forEach(function (u, i) {
+      u.target = self.cast[i % self.cast.length] || null;
       tl.to(u.host, {
         autoAlpha: 1, y: 0, scale: 1, duration: 1.5, ease: 'power2.out'
       }, 27 + i * 0.35);
+      /* slide over the crew member it is coming for */
+      if (u.target) {
+        tl.to(u.host, {
+          x: (u.target.homeX - u.homeX) / 100 * vw * 0.9,
+          duration: 2.0, ease: 'power2.inOut',
+        }, 28.2 + i * 0.2);
+      }
       tl.add(XY.Ufo.beamOn(u, 0.5), 30 + i * 0.3);
+      tl.call(function () { XY.shake && XY.shake(7, 0.35); }, null, 30 + i * 0.3);
       tl.add(XY.Ufo.beamOff(u, 0.4), 33.4 + i * 0.2);
     });
-    /* Creatures get caught in the beams and drift upward. These use absolute
-       values around the climb offset rather than relative ones, so that
-       scrubbing backwards lands on exactly the same numbers as playing
-       forwards — relative tweens resolve their start value on first render and
-       drift when a timeline is seeked. */
+    /* Creatures get caught in the beams and drift upward, and CHANGE while
+       they are up there — the morph happens where the eye already is. These
+       use absolute values around the climb offset rather than relative ones,
+       so that scrubbing backwards lands on exactly the same numbers as
+       playing forwards; relative tweens resolve their start value on first
+       render and drift when a timeline is seeked. */
     var climbY = -vh * 0.08;
     this.cast.forEach(function (c, i) {
-      tl.to(c.host, { y: climbY - 70, rotation: 12, duration: 1.4, ease: 'sine.inOut' }, 30.4 + i * 0.16);
+      var lift = 30.4 + i * 0.16;
+      tl.to(c.host, { y: climbY - 130, rotation: 14, duration: 1.4, ease: 'sine.inOut' }, lift);
+      /* the change, mid-beam */
+      var bg = XY.Creature.genome(c.genome.seed + ':beam', {});
+      tl.add(XY.Creature.morphTo(c, bg, { paused: true, duration: 0.7 }), lift + 0.75);
       tl.to(c.host, { y: climbY, rotation: 0, duration: 1.1, ease: 'bounce.out' }, 33 + i * 0.14);
+      tl.call(function () { XY.shake && XY.shake(5, 0.22); }, null, 33.9 + i * 0.14);
     });
 
-    /* ---------------- ACT 5 — Captain Xyla ---------------- */
+    /* ---------------- ACT 5 — Captain Xyla ----------------
+       She overshoots past full size and settles back, which reads as landing
+       with weight rather than simply appearing. */
     tl.fromTo(this.hero.host,
       { autoAlpha: 0, scale: 0.4, y: 90 },
-      { autoAlpha: 1, scale: 1, y: 0, duration: 1.4, ease: 'back.out(1.5)' }, 34.8);
+      { autoAlpha: 1, scale: 1.06, y: 0, duration: 1.4, ease: 'back.out(1.6)' }, 34.8);
+    tl.to(this.hero.host, { scale: 1, duration: 0.7, ease: 'elastic.out(1, 0.55)' }, 36.0);
+    /* the biggest hit in the piece — her feet touching down */
+    tl.call(function () { XY.shake && XY.shake(16, 0.7); }, null, 35.9);
+    /* The saucers have done their job — they lift away and dim, which clears
+       the top of the frame for the "3rd BIRTHDAY" and reads as them leaving
+       rather than simply being drawn over. */
+    this.fleet.forEach(function (u, i) {
+      tl.to(u.host, { y: -vh * 0.16, autoAlpha: 0.42, duration: 1.6,
+                      ease: 'power2.inOut' }, 35.0 + i * 0.12);
+    });
     tl.fromTo(R.three,
       { autoAlpha: 0, scale: 0.2, rotate: -25 },
       { autoAlpha: 1, scale: 1, rotate: 0, duration: 1.2, ease: 'back.out(2)' }, 36.2);
-    tl.call(function () { self.onCheer && self.onCheer(); }, null, 36.4);
+    tl.call(function () {
+      self.onCheer && self.onCheer();
+      XY.shake && XY.shake(11, 0.5);
+    }, null, 36.4);
     /* The crew gathers around her — again by transform. Target positions are
        resolved to pixels once, here, from each actor's own home percentage. */
     this.cast.forEach(function (c, i) {
+      /* They gather around her in pairs, alternating sides and stepping out.
+         Kept high and tight: the camera is pushed in here, so anything below
+         about 60% is outside the frame by the time it arrives. */
       var side = i % 2 ? 1 : -1;
-      var spread = 15 + Math.floor(i / 2) * 10;
+      var spread = 17 + Math.floor(i / 2) * 9;
       var targetXpc = 50 + side * spread;
-      var targetYpc = 56 + (i % 3) * 6;
+      var targetYpc = 46 + (i % 3) * 5;
       tl.to(c.host, {
         x: (targetXpc - c.homeX) / 100 * vw,
         y: (targetYpc - c.homeY) / 100 * vh,
@@ -389,8 +522,12 @@
     }
 
     /* ---------------- ACT 6 — the invitation ---------------- */
-    tl.to([this.hero.host, R.three], { y: -40, scale: 0.78, duration: 1.2, ease: 'power2.inOut' }, 41);
-    tl.call(function () { self.onInvite && self.onInvite(); }, null, 41.4);
+    /* She shrinks only a little — she is still the biggest thing on screen
+       when the invitation lands. The `3` moves further to make the room. */
+    tl.to(this.hero.host, { y: -30, scale: 0.92, duration: 1.2, ease: 'power2.inOut' }, 40.4);
+    tl.to(R.three, { y: -90, scale: 0.7, duration: 1.2, ease: 'power2.inOut' }, 40.4);
+    /* the card comes up on the celebration, not after it has died down */
+    tl.call(function () { self.onInvite && self.onInvite(); }, null, 38.6);
     tl.to({}, { duration: 1 }, END - 1);   // let it breathe at the end
 
     this.master = tl;

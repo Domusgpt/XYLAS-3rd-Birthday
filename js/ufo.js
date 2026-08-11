@@ -116,46 +116,69 @@
     /* gradient for the tractor beam — a def, not a filter */
     var defs = XY.svgEl('defs');
     var grad = XY.svgEl('linearGradient', { id: id + '-beam', x1: '0', y1: '0', x2: '0', y2: '1' });
-    [['0%', 0.62], ['55%', 0.3], ['100%', 0]].forEach(function (s) {
+    [['0%', 0.5], ['55%', 0.2], ['100%', 0]].forEach(function (s) {
       grad.appendChild(XY.svgEl('stop', { offset: s[0], 'stop-color': g.portColor, 'stop-opacity': s[1] }));
     });
     defs.appendChild(grad);
     var clip = XY.svgEl('clipPath', { id: id + '-clip' });
+    /* The beam is authored LONG — down to y=900 in a box whose saucer is only
+       ~70 tall. A saucer at the top of the frame is catching a creature most
+       of a screen below it, and the old 300-unit beam physically could not
+       span that: at a phone's 38vmin saucer it came out about 130px long
+       against a 380px gap, which is why the beams used to fire into empty sky.
+       Authoring it long means aim() only ever has to stretch it a little, and
+       a small stretch keeps the chevrons and the landing pool undistorted. */
+    var BEAM_Y0 = 84, BEAM_Y1 = 900;
     var beamShape = path.closedSpline([
-      [100 - built.w * 0.28, 84], [100 + built.w * 0.28, 84],
-      [100 + built.w * 0.95, 300], [100 - built.w * 0.95, 300],
+      [100 - built.w * 0.28, BEAM_Y0], [100 + built.w * 0.28, BEAM_Y0],
+      [100 + built.w * 0.62, BEAM_Y1], [100 - built.w * 0.62, BEAM_Y1],
     ], 0.25);
     clip.appendChild(XY.svgEl('path', { d: beamShape }));
     defs.appendChild(clip);
     svg.appendChild(defs);
 
     var root = XY.svgEl('g', { class: 'u-root' });
+    /* The rig carries BOTH the beam and the hull, and it is the rig that
+       tilts. Tilting the hull alone — which is what this used to do — swung
+       the saucer's belly while the beam stayed bolt upright, so the beam
+       visibly came unstuck from the ship it was supposed to be coming out of.
+       Parenting them together makes that impossible by construction. */
+    var rig = XY.svgEl('g', { class: 'u-rig' });
 
-    /* ---- the beam, behind the saucer ---- */
-    var beamG = XY.svgEl('g', { class: 'u-beam', opacity: 0 });
-    beamG.appendChild(XY.svgEl('path', { d: beamShape, fill: 'url(#' + id + '-beam)' }));
+    /* ---- the beam, behind the saucer ----
+       Two nested groups on purpose, because two different things drive the
+       beam and they must not fight over the same transform:
+         .u-beam     — aim() owns it: rotation and length, every frame.
+         .u-beam-fx  — beamOn/beamOff own it: the flare as it lights and dies.
+       Sharing one node meant the switch-on tween and the aim overwrote each
+       other's scaleY, which is the classic way a beam ends up flickering. */
+    var beamG = XY.svgEl('g', { class: 'u-beam' });
+    var beamFx = XY.svgEl('g', { class: 'u-beam-fx', opacity: 0 });
+    beamG.appendChild(beamFx);
+    beamFx.appendChild(XY.svgEl('path', { d: beamShape, fill: 'url(#' + id + '-beam)' }));
     var chevG = XY.svgEl('g', { 'clip-path': 'url(#' + id + '-clip)' });
     var chevrons = [];
-    for (var c = 0; c < 4; c++) {
-      var cy = 100 + c * 52;
+    /* chevrons tile the whole length now that the beam is long */
+    for (var c = 0; c < 11; c++) {
+      var cy = 120 + c * 72;
+      var cw = built.w * (0.3 + 0.3 * (cy - BEAM_Y0) / (BEAM_Y1 - BEAM_Y0));
       var ch = XY.svgEl('path', {
         d: path.closedSpline([
-          [100 - built.w * 0.5, cy], [100, cy + 12], [100 + built.w * 0.5, cy],
-          [100, cy + 3],
+          [100 - cw, cy], [100, cy + 16], [100 + cw, cy], [100, cy + 4],
         ], 0.5),
         fill: '#FFFFFF', opacity: 0.4
       });
       chevG.appendChild(ch);
       chevrons.push(ch);
     }
-    beamG.appendChild(chevG);
+    beamFx.appendChild(chevG);
     /* a pool of light where the beam lands */
     var pool = XY.svgEl('path', {
-      d: path.blob(100, 296, built.w * 0.95, 14, { points: 14, wobble: 0 }),
+      d: path.blob(100, BEAM_Y1 - 6, built.w * 0.62, 16, { points: 14, wobble: 0 }),
       fill: g.portColor, opacity: 0.3
     });
-    beamG.appendChild(pool);
-    root.appendChild(beamG);
+    beamFx.appendChild(pool);
+    rig.appendChild(beamG);
 
     /* ---- the saucer itself ---- */
     var hullG = XY.svgEl('g', { class: 'u-hull' });
@@ -172,12 +195,16 @@
       if (a.port) ports.push(p);
       hullG.appendChild(p);
     });
-    root.appendChild(hullG);
+    rig.appendChild(hullG);
+    root.appendChild(rig);
     svg.appendChild(root);
 
     return {
-      genome: g, svg: svg, root: root, hull: hullG, beam: beamG,
+      genome: g, svg: svg, root: root, rig: rig, hull: hullG,
+      beam: beamG, beamFx: beamFx,
       nodes: nodes, ports: ports, chevrons: chevrons, width: built.w,
+      /* the beam's own geometry, needed to aim it — see aimAll() */
+      beamY0: BEAM_Y0, beamY1: BEAM_Y1,
     };
   }
 
@@ -185,7 +212,8 @@
      periods so the fleet never falls into lockstep and looks mechanical. */
   function animate(u) {
     var rand = XY.rng(u.genome.seed + 5);
-    gsap.to(u.hull, { rotation: rand.range(3.5, 6), duration: rand.range(2.4, 3.4),
+    /* the whole rig tilts, so the beam tilts with the belly it comes out of */
+    gsap.to(u.rig, { rotation: rand.range(3.5, 6), duration: rand.range(2.4, 3.4),
       repeat: -1, yoyo: true, ease: 'sine.inOut', transformOrigin: '100px 70px' });
     gsap.to(u.root, { y: rand.range(5, 9), duration: rand.range(1.7, 2.5),
       repeat: -1, yoyo: true, ease: 'sine.inOut' });
@@ -195,22 +223,74 @@
     gsap.to(u.ports, { opacity: 0.45, duration: 0.9, repeat: -1, yoyo: true,
       ease: 'sine.inOut', stagger: { each: 0.16, repeat: -1, yoyo: true } });
     /* chevrons drift down the beam forever; the beam group's opacity gates it */
-    gsap.fromTo(u.chevrons, { y: -46 }, { y: 46, duration: 1.6, repeat: -1,
-      ease: 'none', stagger: 0.4 });
+    gsap.fromTo(u.chevrons, { y: -72 }, { y: 72, duration: 2.2, repeat: -1,
+      ease: 'none', stagger: 0.2 });
   }
 
   function beamOn(u, dur) {
     return gsap.timeline()
-      .set(u.beam, { transformOrigin: '100px 84px' })
-      .fromTo(u.beam, { opacity: 0, scaleY: 0.05, scaleX: 0.5 },
+      .set(u.beamFx, { transformOrigin: '100px 84px' })
+      .fromTo(u.beamFx, { opacity: 0, scaleY: 0.05, scaleX: 0.5 },
         { opacity: 1, scaleY: 1, scaleX: 1, duration: dur || 0.45, ease: 'back.out(1.6)' });
   }
 
   function beamOff(u, dur) {
-    return gsap.to(u.beam, { opacity: 0, scaleY: 0.05, duration: dur || 0.35,
+    return gsap.to(u.beamFx, { opacity: 0, scaleY: 0.05, duration: dur || 0.35,
       ease: 'power2.in', transformOrigin: '100px 84px' });
   }
 
-  XY.Ufo = { genome: genome, render: render, animate: animate, beamOn: beamOn, beamOff: beamOff };
+  /* --------------------------------------------------------------------------
+   *  Point a beam at something and make it exactly long enough to reach.
+   *
+   *  The saucers and the crew live in different parallax layers, which pan by
+   *  different amounts and — now that there is a camera — scale by different
+   *  amounts too. So there is no fixed beam geometry that stays attached to a
+   *  creature: the only thing that stays true is measuring where both actually
+   *  ended up on screen. Rects are post-transform, so this keeps working under
+   *  pan, zoom, tilt, bob and shake without knowing about any of them.
+   *
+   *  Called every frame from the one ticker in main.js, for lit beams only.
+   *
+   *  Every rect is READ before anything is written. Interleaving reads and
+   *  writes would force the browser to re-run layout once per saucer instead
+   *  of once per frame — the difference between free and a visible stutter.
+   * ------------------------------------------------------------------------*/
+  function aimAll(pairs) {
+    var i, m = [];
+    for (i = 0; i < pairs.length; i++) {
+      var u = pairs[i].u, el = pairs[i].el;
+      if (!el) continue;
+      var ur = u.host.getBoundingClientRect();
+      var tr = el.getBoundingClientRect();
+      if (!ur.width || !tr.width) continue;
+      m.push({ u: u, ur: ur, tr: tr });
+    }
+    for (i = 0; i < m.length; i++) {
+      var a = m[i], U = a.u;
+      /* the beam's mouth, in screen px: the middle of the saucer's belly.
+         The viewBox is `-20 0 240 320`, so x=100 sits 120 units in. */
+      var scale = a.ur.width / 240;
+      var mouthX = a.ur.left + 120 * scale;
+      var mouthY = a.ur.top + U.beamY0 * scale;
+
+      var dx = a.tr.left + a.tr.width / 2 - mouthX;
+      var dy = a.tr.top + a.tr.height * 0.45 - mouthY;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+      var nominal = (U.beamY1 - U.beamY0) * scale;   // length at scaleY 1
+
+      /* Swing the beam out of the belly and stretch it so its far end lands
+         ON the creature rather than somewhere near it. */
+      gsap.set(U.beam, {
+        transformOrigin: '100px ' + U.beamY0 + 'px',
+        rotation: -Math.atan2(dx, dy) * 180 / Math.PI,
+        scaleY: XY.clamp(dist / Math.max(1, nominal), 0.18, 1.6),
+      });
+    }
+  }
+
+  XY.Ufo = {
+    genome: genome, render: render, animate: animate,
+    beamOn: beamOn, beamOff: beamOff, aimAll: aimAll,
+  };
 
 })(window.XY = window.XY || {});

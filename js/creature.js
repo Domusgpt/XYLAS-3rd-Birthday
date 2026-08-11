@@ -771,10 +771,74 @@
     return tl;
   }
 
+  /* --------------------------------------------------------------------------
+   *  Two creatures playing with each other.
+   *
+   *  Everything else on this stage is a solo performance — each creature
+   *  breathes and blinks in its own little bubble, which is why a row of them
+   *  reads as a row of them rather than as a crew. This is the fix: neighbours
+   *  are paired up and given a game to play, on a loop, forever.
+   *
+   *  Rules it has to obey, both inherited from the file header:
+   *   - It is an INFINITE timeline, so it must never be added to master. It
+   *     animates `.c-root`/`.c-body` only, never the `.actor` host, because the
+   *     host's x/y belong to the story and a tug of war over them would make
+   *     scrubbing jump.
+   *   - Seeded from the pair, so a given pair always plays the same game.
+   * ------------------------------------------------------------------------*/
+  var GAMES = ['bump', 'copy', 'spin', 'peek'];
+
+  function play(a, b, seed) {
+    if (!a || !b) return null;
+    var rand = XY.rng((seed || '') + ':play:' + a.genome.seed + b.genome.seed);
+    var game = rand.pick(GAMES);
+    var gap = rand.range(2.6, 5.0);        // pause between rounds
+    var dir = a.homeX > b.homeX ? -1 : 1;  // which way they lean to meet
+    var tl = gsap.timeline({ repeat: -1, repeatDelay: gap, delay: rand.range(0, 3) });
+    var O = '100px 184px';
+
+    if (game === 'bump') {
+      /* lean in, tap shoulders, rock back */
+      tl.to(a.root, { x: 16 * dir, rotation: 7 * dir, duration: 0.5, ease: 'power2.in', transformOrigin: O }, 0)
+        .to(b.root, { x: -16 * dir, rotation: -7 * dir, duration: 0.5, ease: 'power2.in', transformOrigin: O }, 0)
+        .to([a.body, b.body], { scaleX: 1.12, scaleY: 0.9, duration: 0.1, transformOrigin: O }, 0.5)
+        .to(a.root, { x: 0, rotation: 0, duration: 0.9, ease: 'elastic.out(1, 0.5)' }, 0.6)
+        .to(b.root, { x: 0, rotation: 0, duration: 0.9, ease: 'elastic.out(1, 0.5)' }, 0.6)
+        .to([a.body, b.body], { scaleX: 1, scaleY: 1, duration: 0.7, ease: 'elastic.out(1, 0.5)' }, 0.6);
+
+    } else if (game === 'copy') {
+      /* one hops, the other copies a beat later — the oldest gag there is */
+      tl.to(a.root, { y: -34, duration: 0.32, ease: 'power2.out' }, 0)
+        .to(a.root, { y: 0, duration: 0.6, ease: 'bounce.out' }, 0.32)
+        .to(b.root, { y: -34, duration: 0.32, ease: 'power2.out' }, 0.55)
+        .to(b.root, { y: 0, duration: 0.6, ease: 'bounce.out' }, 0.87);
+
+    } else if (game === 'spin') {
+      /* they swap places, orbiting past each other */
+      var d = Math.abs(a.homeX - b.homeX) * 2.2;
+      tl.to(a.root, { x: d * dir, y: -18, rotation: 360, duration: 1.2, ease: 'power2.inOut', transformOrigin: O }, 0)
+        .to(b.root, { x: -d * dir, y: 18, rotation: -360, duration: 1.2, ease: 'power2.inOut', transformOrigin: O }, 0)
+        .to(a.root, { x: 0, y: 0, rotation: 0, duration: 1.2, ease: 'power2.inOut' }, 1.5)
+        .to(b.root, { x: 0, y: 0, rotation: 0, duration: 1.2, ease: 'power2.inOut' }, 1.5);
+
+    } else {
+      /* peek: one ducks behind, pops back up, and the other startles */
+      tl.to(a.body, { scaleY: 0.55, y: 40, duration: 0.35, ease: 'power2.in', transformOrigin: O }, 0)
+        .to(a.body, { scaleY: 1, y: 0, duration: 0.7, ease: 'back.out(2.4)' }, 0.75)
+        .to(b.root, { rotation: -9 * dir, duration: 0.14, ease: 'power2.out', transformOrigin: O }, 0.8)
+        .to(b.body, { scaleY: 1.16, scaleX: 0.88, duration: 0.14, transformOrigin: O }, 0.8)
+        .to(b.root, { rotation: 0, duration: 0.8, ease: 'elastic.out(1, 0.4)' }, 0.96)
+        .to(b.body, { scaleY: 1, scaleX: 1, duration: 0.8, ease: 'elastic.out(1, 0.4)' }, 0.96);
+    }
+
+    a.playTl = b.playTl = tl;
+    return tl;
+  }
+
   XY.Creature = {
     SLOTS: SLOTS, KITS: KITS, GEO: GEO,
     genome: genome, spec: spec, render: render,
-    morphTo: morphTo, animate: animate, react: react,
+    morphTo: morphTo, animate: animate, react: react, play: play,
     /* Exposed so the photo hero can wear the same generated pirate hat the
        drawn crew wears — one hat design, used in both places. */
     shapes: {

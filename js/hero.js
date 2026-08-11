@@ -425,7 +425,11 @@
     var withHat = opts.hat !== false;
 
     var svg = XY.svgEl('svg', {
-      viewBox: '-150 -80 880 920', class: 'creature hero hero-photo',
+      /* Tight to the photo. The old box was 880 wide for a 572-wide picture,
+         so a third of her declared width was empty padding and she rendered
+         far smaller than the CSS size suggested. This still clears the wings
+         and the sparkle ring, and nothing else. */
+      viewBox: '-96 -56 764 856', class: 'creature hero hero-photo',
       'aria-hidden': 'true', focusable: 'false', overflow: 'visible'
     });
     var root = XY.svgEl('g', { class: 'c-root' });

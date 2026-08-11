@@ -73,11 +73,25 @@ body.is-scrollable { overflow: auto; }
 
 .layer {
   position: absolute;
-  inset: -8%;                 /* bleed, so parallax never exposes an edge */
+  /* Bleed, so parallax never exposes an edge. Deliberately still 8%: every
+     actor is positioned as a percentage OF THIS BOX, so widening the bleed
+     would silently move the whole composition. The camera instead clamps its
+     own pan to whatever the current zoom actually covers — see parallax.js. */
+  inset: -8%;
   pointer-events: none;
   contain: layout paint;
   backface-visibility: hidden;
+  /* the camera scales layers about the middle of the frame */
+  transform-origin: 50% 50%;
 }
+
+/* Depth of field. Toggled at act boundaries only — never tweened per frame,
+   which is one of the few things that genuinely wrecks a phone's framerate.
+   The scenery layers are static, so a composited blur on them is close to
+   free; `body.calm` and the low/medium quality tiers never get it. */
+.layer.is-defocused { filter: blur(3px); }
+#l-far.is-defocused { filter: blur(5px); }
+body.calm .layer.is-defocused { filter: none; }
 
 #l-sky      { inset: 0; }
 #l-sky canvas { width: 100%; height: 100%; display: block; }
@@ -97,14 +111,23 @@ body.is-scrollable { overflow: auto; }
 .actor .hit { fill: transparent; }
 
 .actor-ufo { width: 30vmin; }
-.actor-hero { width: 30vmin; }
+/* Captain Xyla is the point of the whole page — she is sized to dominate the
+   frame, not to sit politely among the crew. */
+.actor-hero { width: 44vmin; }
 
-/* The giant "3" sits behind Captain Xyla at the reveal. */
+/* The giant "3" is a BACKDROP behind Captain Xyla at the reveal, not a badge
+   beside her — big enough that its top curve clears her head and its foot
+   shows past her legs. Sat at 30% it simply hid behind her; sat higher and
+   smaller it collided with the fleet. Large and low-z solves both. */
 .bigthree {
   position: absolute;
-  left: 50%; top: 20%;
-  width: 34vmin;
-  z-index: 80;
+  left: 50%; top: 13%;
+  /* One wide line, not a stack. A tall lockup kept colliding with either the
+     top bar or Xyla's head depending on the viewport, because the camera zoom
+     throws content near the frame edge outward. A short, wide banner has room
+     to sit above her on both a phone and a desktop. */
+  width: 58vmin;
+  z-index: 70;
   opacity: 0;
   pointer-events: none;
 }
@@ -113,7 +136,10 @@ body.is-scrollable { overflow: auto; }
 @media (max-width: 620px) {
   .actor { width: 30vmin; }
   .actor-ufo { width: 38vmin; }
-  .actor-hero { width: 42vmin; }
+  .actor-hero { width: 68vmin; }
+  /* 70vmin, not 90: the Act 5 camera push multiplies this by ~1.16, and
+     anything wider than about 74vmin here runs off both edges of a phone. */
+  .bigthree { top: 17%; width: 70vmin; }
 }
 
 /* ============================ UI CHROME =================================== */
@@ -147,12 +173,35 @@ body.is-scrollable { overflow: auto; }
 }
 
 .brandmark {
-  font-weight: 800; font-size: 15px; letter-spacing: .01em;
+  display: grid;
+  font-weight: 800; letter-spacing: .01em;
   color: var(--ink);
-  background: rgba(255, 252, 246, .82);
-  padding: 8px 14px; border-radius: 999px;
+  background: rgba(255, 252, 246, .88);
+  padding: 8px 16px; border-radius: 22px;
   box-shadow: 0 2px 10px rgba(42,27,74,.12);
+  line-height: 1.2;
 }
+.brandmark b { font-size: 18px; font-weight: 900; }
+.brandmark i {
+  font-style: normal;
+  font-size: 14px; font-weight: 700;
+  color: var(--leaf);
+}
+.brandmark i:empty { display: none; }
+
+/* the plain facts on the cover */
+.cover-facts {
+  margin: 1.1em 0 0;
+  font-size: clamp(17px, 4.6vw, 25px);
+  font-weight: 800;
+  line-height: 1.35;
+  color: var(--ink);
+  background: rgba(255, 252, 246, .8);
+  border-radius: 20px;
+  padding: 12px 18px;
+  box-shadow: 0 4px 18px rgba(42,27,74,.12);
+}
+.cover-facts .hl { color: var(--leaf); }
 
 .topbar-actions { display: flex; gap: 8px; }
 
@@ -202,11 +251,14 @@ body.is-scrollable { overflow: auto; }
 .storytitle {
   margin: auto;
   text-align: center;
-  padding: 0 24px;
-  max-width: 22ch;
+  padding: 0 20px;
+  /* Wide enough that the facts block below reads as sentences rather than a
+     column of single words. The headline keeps its own tighter measure. */
+  max-width: min(34ch, 94vw);
 }
+.storytitle h1 { max-width: 9ch; margin-left: auto; margin-right: auto; }
 .storytitle .kicker {
-  font-size: clamp(13px, 3vw, 17px);
+  font-size: clamp(15px, 3.6vw, 20px);
   letter-spacing: .22em; text-transform: uppercase;
   font-weight: 800;
   color: var(--ink); opacity: .7;
@@ -214,7 +266,7 @@ body.is-scrollable { overflow: auto; }
 }
 .storytitle h1 {
   margin: 0;
-  font-size: clamp(38px, 12vw, 104px);
+  font-size: clamp(46px, 15vw, 128px);
   line-height: .94;
   font-weight: 900;
   letter-spacing: -.02em;
@@ -225,7 +277,7 @@ body.is-scrollable { overflow: auto; }
 }
 .storytitle .sub {
   margin: .7em 0 0;
-  font-size: clamp(15px, 4vw, 22px);
+  font-size: clamp(18px, 4.8vw, 26px);
   font-weight: 700;
   color: var(--ink);
 }
@@ -344,7 +396,7 @@ body.is-scrollable { overflow: auto; }
 
 .card .title {
   margin: 0 0 10px;
-  font-size: clamp(28px, 7.5vw, 42px);
+  font-size: clamp(34px, 9vw, 52px);
   line-height: 1.02;
   font-weight: 900;
   letter-spacing: -.02em;
@@ -379,11 +431,11 @@ body.is-scrollable { overflow: auto; }
 }
 .details dd {
   margin: 0;
-  font-size: clamp(16px, 4.2vw, 19px);
+  font-size: clamp(18px, 4.8vw, 22px);
   font-weight: 700;
   line-height: 1.32;
 }
-.details .row-when dd { font-size: clamp(18px, 5vw, 22px); }
+.details .row-when dd { font-size: clamp(22px, 6vw, 28px); }
 .details .sub {
   display: block;
   font-size: 15px; font-weight: 600;
@@ -490,9 +542,9 @@ body.calm .actor { animation: none !important; }
   width: min(34ch, calc(100% - 32px));
   margin: auto auto 4px;
   padding: 0 12px;
-  min-height: 4.2em;
+  min-height: 3.4em;
   text-align: center;
-  font-size: clamp(16px, 4.2vw, 22px);
+  font-size: clamp(21px, 5.8vw, 32px);
   font-weight: 700;
   line-height: 1.35;
   color: var(--ink);
@@ -502,8 +554,14 @@ body.calm .actor { animation: none !important; }
 .narration-line {
   position: absolute;
   left: 0; right: 0;
-  padding: 0 12px;
+  /* A soft plate behind the words. The crew now flies low enough to sit
+     behind the narration, and a text-shadow halo alone was not enough to keep
+     a sentence readable over a bright yellow dinosaur. */
+  padding: 10px 16px;
   display: block;
+  background: rgba(255, 252, 246, .8);
+  border-radius: 20px;
+  box-shadow: 0 4px 18px rgba(42, 27, 74, .12);
 }
 
 </style>
@@ -518,13 +576,21 @@ body.calm .actor { animation: none !important; }
   <div class="layer" id="l-mid"></div>
   <div class="layer" id="l-fleet"></div>
   <div class="layer" id="l-cast">
+    <!-- The backdrop behind Captain Xyla at the reveal. It says "3rd BIRTHDAY"
+         rather than a bare numeral, so the single most-photographed frame of
+         the whole piece states what the occasion is on its own. -->
     <div id="bigthree" class="bigthree">
-      <svg viewBox="0 0 200 200" aria-hidden="true" focusable="false">
-        <text x="100" y="152" text-anchor="middle"
+      <svg viewBox="0 0 620 210" aria-hidden="true" focusable="false">
+        <text x="310" y="152" text-anchor="middle"
               font-family="ui-rounded, 'SF Pro Rounded', system-ui, sans-serif"
-              font-size="170" font-weight="900"
+              font-weight="900"
               fill="#FFD84D" stroke="#2A1B4A" stroke-width="9"
-              paint-order="stroke" style="letter-spacing:-.04em">3</text>
+              paint-order="stroke">
+          <tspan font-size="150" style="letter-spacing:-.04em">3</tspan><tspan
+                 font-size="68" dy="-52">rd</tspan><tspan
+                 font-size="62" dy="52" dx="26"
+                 style="letter-spacing:.06em">BIRTHDAY</tspan>
+        </text>
       </svg>
     </div>
   </div>
@@ -535,16 +601,25 @@ body.calm .actor { animation: none !important; }
 <div id="ui">
 
   <div class="topbar">
-    <span class="brandmark">🍋 Xyla’s 3rd Birthday</span>
+    <!-- Filled from CONFIG.PARTY at boot so it can never drift from the card.
+         The second line is the whole point: whose birthday and when, on screen
+         in every single frame of the story. -->
+    <span class="brandmark" id="brandmark">
+      <b>🍋 Xyla’s 3rd Birthday</b>
+      <i id="brand-when"></i>
+    </span>
     <div class="topbar-actions">
       <button type="button" class="btn btn-primary" id="open-details">Details &amp; RSVP</button>
     </div>
   </div>
 
   <div class="storytitle" id="storytitle">
-    <p class="kicker">A storybook invitation</p>
+    <p class="kicker">You’re invited to</p>
     <h1><span class="title-word">Captain</span> <span class="title-word">Xyla</span></h1>
     <p class="sub">and the Lemon Sea</p>
+    <!-- The plain facts, on the cover, at second two. Everything above this
+         line is atmosphere; this is the part Grandma actually needs. -->
+    <p class="cover-facts" id="cover-facts"></p>
   </div>
 
   <!-- One line of story per act. Decorative narration: the real information
@@ -1894,10 +1969,74 @@ window.XY.CONFIG = {
     return tl;
   }
 
+  /* --------------------------------------------------------------------------
+   *  Two creatures playing with each other.
+   *
+   *  Everything else on this stage is a solo performance — each creature
+   *  breathes and blinks in its own little bubble, which is why a row of them
+   *  reads as a row of them rather than as a crew. This is the fix: neighbours
+   *  are paired up and given a game to play, on a loop, forever.
+   *
+   *  Rules it has to obey, both inherited from the file header:
+   *   - It is an INFINITE timeline, so it must never be added to master. It
+   *     animates `.c-root`/`.c-body` only, never the `.actor` host, because the
+   *     host's x/y belong to the story and a tug of war over them would make
+   *     scrubbing jump.
+   *   - Seeded from the pair, so a given pair always plays the same game.
+   * ------------------------------------------------------------------------*/
+  var GAMES = ['bump', 'copy', 'spin', 'peek'];
+
+  function play(a, b, seed) {
+    if (!a || !b) return null;
+    var rand = XY.rng((seed || '') + ':play:' + a.genome.seed + b.genome.seed);
+    var game = rand.pick(GAMES);
+    var gap = rand.range(2.6, 5.0);        // pause between rounds
+    var dir = a.homeX > b.homeX ? -1 : 1;  // which way they lean to meet
+    var tl = gsap.timeline({ repeat: -1, repeatDelay: gap, delay: rand.range(0, 3) });
+    var O = '100px 184px';
+
+    if (game === 'bump') {
+      /* lean in, tap shoulders, rock back */
+      tl.to(a.root, { x: 16 * dir, rotation: 7 * dir, duration: 0.5, ease: 'power2.in', transformOrigin: O }, 0)
+        .to(b.root, { x: -16 * dir, rotation: -7 * dir, duration: 0.5, ease: 'power2.in', transformOrigin: O }, 0)
+        .to([a.body, b.body], { scaleX: 1.12, scaleY: 0.9, duration: 0.1, transformOrigin: O }, 0.5)
+        .to(a.root, { x: 0, rotation: 0, duration: 0.9, ease: 'elastic.out(1, 0.5)' }, 0.6)
+        .to(b.root, { x: 0, rotation: 0, duration: 0.9, ease: 'elastic.out(1, 0.5)' }, 0.6)
+        .to([a.body, b.body], { scaleX: 1, scaleY: 1, duration: 0.7, ease: 'elastic.out(1, 0.5)' }, 0.6);
+
+    } else if (game === 'copy') {
+      /* one hops, the other copies a beat later — the oldest gag there is */
+      tl.to(a.root, { y: -34, duration: 0.32, ease: 'power2.out' }, 0)
+        .to(a.root, { y: 0, duration: 0.6, ease: 'bounce.out' }, 0.32)
+        .to(b.root, { y: -34, duration: 0.32, ease: 'power2.out' }, 0.55)
+        .to(b.root, { y: 0, duration: 0.6, ease: 'bounce.out' }, 0.87);
+
+    } else if (game === 'spin') {
+      /* they swap places, orbiting past each other */
+      var d = Math.abs(a.homeX - b.homeX) * 2.2;
+      tl.to(a.root, { x: d * dir, y: -18, rotation: 360, duration: 1.2, ease: 'power2.inOut', transformOrigin: O }, 0)
+        .to(b.root, { x: -d * dir, y: 18, rotation: -360, duration: 1.2, ease: 'power2.inOut', transformOrigin: O }, 0)
+        .to(a.root, { x: 0, y: 0, rotation: 0, duration: 1.2, ease: 'power2.inOut' }, 1.5)
+        .to(b.root, { x: 0, y: 0, rotation: 0, duration: 1.2, ease: 'power2.inOut' }, 1.5);
+
+    } else {
+      /* peek: one ducks behind, pops back up, and the other startles */
+      tl.to(a.body, { scaleY: 0.55, y: 40, duration: 0.35, ease: 'power2.in', transformOrigin: O }, 0)
+        .to(a.body, { scaleY: 1, y: 0, duration: 0.7, ease: 'back.out(2.4)' }, 0.75)
+        .to(b.root, { rotation: -9 * dir, duration: 0.14, ease: 'power2.out', transformOrigin: O }, 0.8)
+        .to(b.body, { scaleY: 1.16, scaleX: 0.88, duration: 0.14, transformOrigin: O }, 0.8)
+        .to(b.root, { rotation: 0, duration: 0.8, ease: 'elastic.out(1, 0.4)' }, 0.96)
+        .to(b.body, { scaleY: 1, scaleX: 1, duration: 0.8, ease: 'elastic.out(1, 0.4)' }, 0.96);
+    }
+
+    a.playTl = b.playTl = tl;
+    return tl;
+  }
+
   XY.Creature = {
     SLOTS: SLOTS, KITS: KITS, GEO: GEO,
     genome: genome, spec: spec, render: render,
-    morphTo: morphTo, animate: animate, react: react,
+    morphTo: morphTo, animate: animate, react: react, play: play,
     /* Exposed so the photo hero can wear the same generated pirate hat the
        drawn crew wears — one hat design, used in both places. */
     shapes: {
@@ -2338,7 +2477,11 @@ window.XY.CONFIG = {
     var withHat = opts.hat !== false;
 
     var svg = XY.svgEl('svg', {
-      viewBox: '-150 -80 880 920', class: 'creature hero hero-photo',
+      /* Tight to the photo. The old box was 880 wide for a 572-wide picture,
+         so a third of her declared width was empty padding and she rendered
+         far smaller than the CSS size suggested. This still clears the wings
+         and the sparkle ring, and nothing else. */
+      viewBox: '-96 -56 764 856', class: 'creature hero hero-photo',
       'aria-hidden': 'true', focusable: 'false', overflow: 'visible'
     });
     var root = XY.svgEl('g', { class: 'c-root' });
@@ -2582,46 +2725,69 @@ window.XY.CONFIG = {
     /* gradient for the tractor beam — a def, not a filter */
     var defs = XY.svgEl('defs');
     var grad = XY.svgEl('linearGradient', { id: id + '-beam', x1: '0', y1: '0', x2: '0', y2: '1' });
-    [['0%', 0.62], ['55%', 0.3], ['100%', 0]].forEach(function (s) {
+    [['0%', 0.5], ['55%', 0.2], ['100%', 0]].forEach(function (s) {
       grad.appendChild(XY.svgEl('stop', { offset: s[0], 'stop-color': g.portColor, 'stop-opacity': s[1] }));
     });
     defs.appendChild(grad);
     var clip = XY.svgEl('clipPath', { id: id + '-clip' });
+    /* The beam is authored LONG — down to y=900 in a box whose saucer is only
+       ~70 tall. A saucer at the top of the frame is catching a creature most
+       of a screen below it, and the old 300-unit beam physically could not
+       span that: at a phone's 38vmin saucer it came out about 130px long
+       against a 380px gap, which is why the beams used to fire into empty sky.
+       Authoring it long means aim() only ever has to stretch it a little, and
+       a small stretch keeps the chevrons and the landing pool undistorted. */
+    var BEAM_Y0 = 84, BEAM_Y1 = 900;
     var beamShape = path.closedSpline([
-      [100 - built.w * 0.28, 84], [100 + built.w * 0.28, 84],
-      [100 + built.w * 0.95, 300], [100 - built.w * 0.95, 300],
+      [100 - built.w * 0.28, BEAM_Y0], [100 + built.w * 0.28, BEAM_Y0],
+      [100 + built.w * 0.62, BEAM_Y1], [100 - built.w * 0.62, BEAM_Y1],
     ], 0.25);
     clip.appendChild(XY.svgEl('path', { d: beamShape }));
     defs.appendChild(clip);
     svg.appendChild(defs);
 
     var root = XY.svgEl('g', { class: 'u-root' });
+    /* The rig carries BOTH the beam and the hull, and it is the rig that
+       tilts. Tilting the hull alone — which is what this used to do — swung
+       the saucer's belly while the beam stayed bolt upright, so the beam
+       visibly came unstuck from the ship it was supposed to be coming out of.
+       Parenting them together makes that impossible by construction. */
+    var rig = XY.svgEl('g', { class: 'u-rig' });
 
-    /* ---- the beam, behind the saucer ---- */
-    var beamG = XY.svgEl('g', { class: 'u-beam', opacity: 0 });
-    beamG.appendChild(XY.svgEl('path', { d: beamShape, fill: 'url(#' + id + '-beam)' }));
+    /* ---- the beam, behind the saucer ----
+       Two nested groups on purpose, because two different things drive the
+       beam and they must not fight over the same transform:
+         .u-beam     — aim() owns it: rotation and length, every frame.
+         .u-beam-fx  — beamOn/beamOff own it: the flare as it lights and dies.
+       Sharing one node meant the switch-on tween and the aim overwrote each
+       other's scaleY, which is the classic way a beam ends up flickering. */
+    var beamG = XY.svgEl('g', { class: 'u-beam' });
+    var beamFx = XY.svgEl('g', { class: 'u-beam-fx', opacity: 0 });
+    beamG.appendChild(beamFx);
+    beamFx.appendChild(XY.svgEl('path', { d: beamShape, fill: 'url(#' + id + '-beam)' }));
     var chevG = XY.svgEl('g', { 'clip-path': 'url(#' + id + '-clip)' });
     var chevrons = [];
-    for (var c = 0; c < 4; c++) {
-      var cy = 100 + c * 52;
+    /* chevrons tile the whole length now that the beam is long */
+    for (var c = 0; c < 11; c++) {
+      var cy = 120 + c * 72;
+      var cw = built.w * (0.3 + 0.3 * (cy - BEAM_Y0) / (BEAM_Y1 - BEAM_Y0));
       var ch = XY.svgEl('path', {
         d: path.closedSpline([
-          [100 - built.w * 0.5, cy], [100, cy + 12], [100 + built.w * 0.5, cy],
-          [100, cy + 3],
+          [100 - cw, cy], [100, cy + 16], [100 + cw, cy], [100, cy + 4],
         ], 0.5),
         fill: '#FFFFFF', opacity: 0.4
       });
       chevG.appendChild(ch);
       chevrons.push(ch);
     }
-    beamG.appendChild(chevG);
+    beamFx.appendChild(chevG);
     /* a pool of light where the beam lands */
     var pool = XY.svgEl('path', {
-      d: path.blob(100, 296, built.w * 0.95, 14, { points: 14, wobble: 0 }),
+      d: path.blob(100, BEAM_Y1 - 6, built.w * 0.62, 16, { points: 14, wobble: 0 }),
       fill: g.portColor, opacity: 0.3
     });
-    beamG.appendChild(pool);
-    root.appendChild(beamG);
+    beamFx.appendChild(pool);
+    rig.appendChild(beamG);
 
     /* ---- the saucer itself ---- */
     var hullG = XY.svgEl('g', { class: 'u-hull' });
@@ -2638,12 +2804,16 @@ window.XY.CONFIG = {
       if (a.port) ports.push(p);
       hullG.appendChild(p);
     });
-    root.appendChild(hullG);
+    rig.appendChild(hullG);
+    root.appendChild(rig);
     svg.appendChild(root);
 
     return {
-      genome: g, svg: svg, root: root, hull: hullG, beam: beamG,
+      genome: g, svg: svg, root: root, rig: rig, hull: hullG,
+      beam: beamG, beamFx: beamFx,
       nodes: nodes, ports: ports, chevrons: chevrons, width: built.w,
+      /* the beam's own geometry, needed to aim it — see aimAll() */
+      beamY0: BEAM_Y0, beamY1: BEAM_Y1,
     };
   }
 
@@ -2651,7 +2821,8 @@ window.XY.CONFIG = {
      periods so the fleet never falls into lockstep and looks mechanical. */
   function animate(u) {
     var rand = XY.rng(u.genome.seed + 5);
-    gsap.to(u.hull, { rotation: rand.range(3.5, 6), duration: rand.range(2.4, 3.4),
+    /* the whole rig tilts, so the beam tilts with the belly it comes out of */
+    gsap.to(u.rig, { rotation: rand.range(3.5, 6), duration: rand.range(2.4, 3.4),
       repeat: -1, yoyo: true, ease: 'sine.inOut', transformOrigin: '100px 70px' });
     gsap.to(u.root, { y: rand.range(5, 9), duration: rand.range(1.7, 2.5),
       repeat: -1, yoyo: true, ease: 'sine.inOut' });
@@ -2661,23 +2832,75 @@ window.XY.CONFIG = {
     gsap.to(u.ports, { opacity: 0.45, duration: 0.9, repeat: -1, yoyo: true,
       ease: 'sine.inOut', stagger: { each: 0.16, repeat: -1, yoyo: true } });
     /* chevrons drift down the beam forever; the beam group's opacity gates it */
-    gsap.fromTo(u.chevrons, { y: -46 }, { y: 46, duration: 1.6, repeat: -1,
-      ease: 'none', stagger: 0.4 });
+    gsap.fromTo(u.chevrons, { y: -72 }, { y: 72, duration: 2.2, repeat: -1,
+      ease: 'none', stagger: 0.2 });
   }
 
   function beamOn(u, dur) {
     return gsap.timeline()
-      .set(u.beam, { transformOrigin: '100px 84px' })
-      .fromTo(u.beam, { opacity: 0, scaleY: 0.05, scaleX: 0.5 },
+      .set(u.beamFx, { transformOrigin: '100px 84px' })
+      .fromTo(u.beamFx, { opacity: 0, scaleY: 0.05, scaleX: 0.5 },
         { opacity: 1, scaleY: 1, scaleX: 1, duration: dur || 0.45, ease: 'back.out(1.6)' });
   }
 
   function beamOff(u, dur) {
-    return gsap.to(u.beam, { opacity: 0, scaleY: 0.05, duration: dur || 0.35,
+    return gsap.to(u.beamFx, { opacity: 0, scaleY: 0.05, duration: dur || 0.35,
       ease: 'power2.in', transformOrigin: '100px 84px' });
   }
 
-  XY.Ufo = { genome: genome, render: render, animate: animate, beamOn: beamOn, beamOff: beamOff };
+  /* --------------------------------------------------------------------------
+   *  Point a beam at something and make it exactly long enough to reach.
+   *
+   *  The saucers and the crew live in different parallax layers, which pan by
+   *  different amounts and — now that there is a camera — scale by different
+   *  amounts too. So there is no fixed beam geometry that stays attached to a
+   *  creature: the only thing that stays true is measuring where both actually
+   *  ended up on screen. Rects are post-transform, so this keeps working under
+   *  pan, zoom, tilt, bob and shake without knowing about any of them.
+   *
+   *  Called every frame from the one ticker in main.js, for lit beams only.
+   *
+   *  Every rect is READ before anything is written. Interleaving reads and
+   *  writes would force the browser to re-run layout once per saucer instead
+   *  of once per frame — the difference between free and a visible stutter.
+   * ------------------------------------------------------------------------*/
+  function aimAll(pairs) {
+    var i, m = [];
+    for (i = 0; i < pairs.length; i++) {
+      var u = pairs[i].u, el = pairs[i].el;
+      if (!el) continue;
+      var ur = u.host.getBoundingClientRect();
+      var tr = el.getBoundingClientRect();
+      if (!ur.width || !tr.width) continue;
+      m.push({ u: u, ur: ur, tr: tr });
+    }
+    for (i = 0; i < m.length; i++) {
+      var a = m[i], U = a.u;
+      /* the beam's mouth, in screen px: the middle of the saucer's belly.
+         The viewBox is `-20 0 240 320`, so x=100 sits 120 units in. */
+      var scale = a.ur.width / 240;
+      var mouthX = a.ur.left + 120 * scale;
+      var mouthY = a.ur.top + U.beamY0 * scale;
+
+      var dx = a.tr.left + a.tr.width / 2 - mouthX;
+      var dy = a.tr.top + a.tr.height * 0.45 - mouthY;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+      var nominal = (U.beamY1 - U.beamY0) * scale;   // length at scaleY 1
+
+      /* Swing the beam out of the belly and stretch it so its far end lands
+         ON the creature rather than somewhere near it. */
+      gsap.set(U.beam, {
+        transformOrigin: '100px ' + U.beamY0 + 'px',
+        rotation: -Math.atan2(dx, dy) * 180 / Math.PI,
+        scaleY: XY.clamp(dist / Math.max(1, nominal), 0.18, 1.6),
+      });
+    }
+  }
+
+  XY.Ufo = {
+    genome: genome, render: render, animate: animate,
+    beamOn: beamOn, beamOff: beamOff, aimAll: aimAll,
+  };
 
 })(window.XY = window.XY || {});
 
@@ -2688,8 +2911,8 @@ window.XY.CONFIG = {
  *  ---------------------------------------------------------------------------
  *  One fullscreen WebGL triangle running a soft, high-value fragment shader:
  *  a vertical pastel gradient, domain-warped cotton-cloud bands, a portal bloom
- *  that opens as the story advances, a twinkling star field, and a wide gentle
- *  rainbow arc.
+ *  that opens as the story advances, a twinkling star field, and a banded
+ *  rainbow (primary plus a reversed secondary) that the clouds pass in front of.
  *
  *  Two hard rules, both non-negotiable for a page a small child will look at:
  *    - Nothing in here oscillates in brightness faster than ~1Hz. No strobing,
@@ -2737,6 +2960,30 @@ window.XY.CONFIG = {
     '  return v;',
     '}',
 
+    'vec3 hsv2rgb(vec3 c){',
+    '  vec3 k = abs(fract(c.xxx + vec3(0.0, 0.6666667, 0.3333333)) * 6.0 - 3.0);',
+    '  return c.z * mix(vec3(1.0), clamp(k - 1.0, 0.0, 1.0), c.y);',
+    '}',
+
+    /* --------------------------------------------------------------------
+     *  A rainbow is bands of colour laid ACROSS the arc, not one colour
+     *  smeared ALONG it. `band` is the normalised distance through the arc's
+     *  thickness — 0 at the inner edge, 1 at the outer — so quantising it
+     *  into seven steps gives seven concentric stripes. Only the last 14% of
+     *  each stripe ramps into the next, which keeps the bands flat and
+     *  distinct while stopping them from aliasing into stairsteps on a phone.
+     * ------------------------------------------------------------------*/
+    'vec3 bowColor(float band, float flip){',
+    '  float b  = mix(band, 1.0 - band, flip);',
+    '  float bq = b * 7.0;',
+    '  float k  = (floor(bq) + smoothstep(0.86, 1.0, fract(bq))) / 6.0;',
+    '  return hsv2rgb(vec3(0.80 * (1.0 - k), 0.72, 1.0));',
+    '}',
+
+    'float bowMask(float band){',
+    '  return smoothstep(0.0, 0.09, band) * smoothstep(1.0, 0.91, band);',
+    '}',
+
     'void main(){',
     '  vec2 uv = gl_FragCoord.xy / uRes.xy;',
     '  vec2 p  = (gl_FragCoord.xy - 0.5 * uRes.xy) / min(uRes.x, uRes.y);',
@@ -2745,6 +2992,18 @@ window.XY.CONFIG = {
     /* base vertical gradient, three stops */
     '  vec3 col = mix(uPalC, uPalB, smoothstep(0.0, 0.55, uv.y));',
     '  col = mix(col, uPalA, smoothstep(0.45, 1.0, uv.y));',
+
+    /* The rainbow is drawn BEFORE the clouds, so the clouds pass in front of
+       it the way they do in the sky, instead of it being painted on top of
+       everything like a sticker. */
+    '  float rr = length(p - vec2(0.0, -0.58));',
+    '  float bowFade = smoothstep(0.12, 0.5, uProgress);',
+    '  float b1 = (rr - 0.58) / 0.19;',
+    '  col = mix(col, bowColor(b1, 0.0), bowMask(b1) * 0.44 * bowFade);',
+    /* the secondary bow — dimmer, wider, and its colours run the other way,
+       which is the detail that makes a drawn rainbow read as a real one */
+    '  float b2 = (rr - 0.86) / 0.13;',
+    '  col = mix(col, bowColor(b2, 1.0), bowMask(b2) * 0.13 * bowFade);',
 
     /* domain-warped cloud bands — soft, wide, slow */
     '  vec2 q = vec2(fbm(p * 1.6 + vec2(t, 0.0)), fbm(p * 1.6 + vec2(5.2, -t)));',
@@ -2763,11 +3022,6 @@ window.XY.CONFIG = {
     '  col = mix(col, vec3(1.0, 0.97, 0.88), ring * 0.55 * uPortal);',
     '  float halo = smoothstep(0.9 * uPortal, 0.25 * uPortal, d) - smoothstep(0.55 * uPortal, 0.1, d);',
     '  col += max(halo, 0.0) * 0.18 * vec3(1.0, 0.8, 0.95) * uPortal;',
-
-    /* a wide, very gentle rainbow arc. Hue drifts slowly; it never strobes. */
-    '  float arc = smoothstep(0.03, 0.0, abs(length(p - vec2(0.0, -0.75)) - 0.85));',
-    '  vec3 rainbow = 0.5 + 0.5 * cos(6.2831 * (vec3(0.0, 0.33, 0.67) + p.x * 0.6 + t * 0.4));',
-    '  col = mix(col, rainbow, arc * 0.22 * smoothstep(0.15, 0.6, uProgress));',
 
     /* twinkling stars — only in the darker upper half, only when the story
        has climbed into space */
@@ -2899,37 +3153,75 @@ window.XY.CONFIG = {
 </script>
 <script>
 /* ============================================================================
- *  parallax.js — the depth engine
+ *  parallax.js — the multi-plane camera
  *  ---------------------------------------------------------------------------
- *  Seven layers, each with a depth factor. Pointer, device tilt and the story's
- *  own camera all push a single target; every layer follows it at its own rate.
+ *  Seven layers, each with a depth factor. Pointer, device tilt, the story's
+ *  camera moves and the shake impulses all push a single target; every layer
+ *  follows it at its own rate.
  *
- *  Two details that matter:
+ *  This is a multi-plane rig, not a flat slide. Three things ride on `depth`:
+ *
+ *    - PAN.   Near layers slide further than far ones. (The original job.)
+ *    - ZOOM.  Near layers *grow* more than far ones when the camera pushes in.
+ *             That difference is the entire reason a push-in reads as depth
+ *             rather than as everything scaling together like a photograph.
+ *    - FOCUS. Centring on a subject moves near layers further than far ones,
+ *             so the parallax stays consistent while the camera travels.
+ *
+ *  Four details that matter:
  *   - Damping is frame-rate independent. A plain lerp(a, b, 0.1) per frame moves
  *     twice as fast on a 120Hz phone as on a 60Hz laptop; the exponential form
  *     here behaves identically on both.
  *   - Exactly one transform write per layer per frame, from a single ticker.
  *     No layout properties are ever touched.
+ *   - Zoom never goes below 1. `.layer` only bleeds 14% past the viewport, so
+ *     pulling back further than the frame would slide a layer edge into shot.
+ *   - The story writes `zoom`/`fx`/`fy` from a tweened proxy on the master
+ *     timeline, so every camera move scrubs exactly like the rest of the piece.
  * ==========================================================================*/
 (function (XY) {
   'use strict';
+
+  /* Must match `.layer { inset: -8% }` in style.css. If that ever changes,
+     change it here too — this is what keeps a pan from exposing an edge. */
+  var BLEED = 0.08;
 
   function Parallax(opts) {
     opts = opts || {};
     this.layers = [];
     this.px = 0; this.py = 0;          // damped current
     this.tx = 0; this.ty = 0;          // target from pointer/tilt
-    this.camX = 0; this.camY = 0;      // pushed by the story timeline
+    this.camX = 0; this.camY = 0;      // shake offset, written by update()
     this.amp = opts.amp || 44;
     this.k = 6.0;
     this.tiltWeight = 0.6;
     this.enabled = true;
+
+    /* ---- camera, driven by the story ---- */
+    this.zoom = 1;                     // >= 1 always; see header
+    this.fx = 0; this.fy = 0;          // focus offset in px, at depth 1
+
+    /* ---- shake ---- */
+    this.sAmp = 0;                     // current impulse amplitude, px
+    this.sT = 0;                       // seconds elapsed inside this impulse
+    this.sDecay = 6;                   // higher = snappier
   }
+
+  /* A decaying two-frequency rumble. One sine buzzes; two sines at
+     deliberately non-harmonic rates read as a real impact settling out.
+     Calling it again while a shake is running takes the louder of the two
+     rather than adding, so a burst of events cannot stack into nausea. */
+  Parallax.prototype.shake = function (amp, dur) {
+    if (!this.enabled) return;
+    this.sAmp = Math.max(this.sAmp, amp || 8);
+    this.sDecay = 1 / Math.max(0.08, dur || 0.4) * 2.4;
+    this.sT = 0;
+  };
 
   Parallax.prototype.add = function (el, depth) {
     if (!el) return;
     el.style.willChange = 'transform';
-    this.layers.push({ el: el, depth: depth, x: 0, y: 0 });
+    this.layers.push({ el: el, depth: depth, x: 0, y: 0, s: 1 });
   };
 
   Parallax.prototype.bind = function (root) {
@@ -2972,15 +3264,46 @@ window.XY.CONFIG = {
     if (!this.enabled) return;
     this.px = XY.damp(this.px, this.tx, this.k, dt);
     this.py = XY.damp(this.py, this.ty, this.k, dt);
+
+    /* shake: two out-of-phase sines, exponentially decaying */
+    if (this.sAmp > 0.02) {
+      this.sT += dt;
+      this.sAmp *= Math.exp(-this.sDecay * dt);
+      var s = this.sAmp;
+      this.camX = Math.sin(this.sT * 138) * s;
+      this.camY = Math.sin(this.sT * 107 + 1.7) * s * 0.8;
+    } else if (this.sAmp !== 0) {
+      this.sAmp = 0; this.camX = 0; this.camY = 0;
+    }
+
     var A = this.amp;
+    var Z = this.zoom;
+    var vw = window.innerWidth, vh = window.innerHeight;
     for (var i = 0; i < this.layers.length; i++) {
       var L = this.layers[i];
-      var x = this.px * A * L.depth + this.camX * L.depth;
-      var y = this.py * A * 0.55 * L.depth + this.camY * L.depth;
+      /* Depth-weighted zoom. The back layer barely changes size, the cast
+         layer takes almost the full push — which is what sells the depth. */
+      var sc = 1 + (Z - 1) * (0.30 + L.depth);
+      var x = this.px * A * L.depth + this.camX * L.depth - this.fx * L.depth * sc;
+      var y = this.py * A * 0.55 * L.depth + this.camY * L.depth - this.fy * L.depth * sc;
+
+      /* How far this layer can travel before its own edge enters the frame.
+         The layer is BLEED wider than the viewport and then scaled, so the
+         overhang grows with the zoom — which is exactly right: the further
+         the camera pushes in, the further it is allowed to pan. Clamping here
+         rather than at the call site means no camera move anywhere in the
+         story can ever expose an edge, however it was authored. */
+      var ox = (sc * (1 + 2 * BLEED) - 1) / 2 * vw;
+      var oy = (sc * (1 + 2 * BLEED) - 1) / 2 * vh;
+      if (x >  ox) x =  ox; else if (x < -ox) x = -ox;
+      if (y >  oy) y =  oy; else if (y < -oy) y = -oy;
+
       /* skip the write when nothing meaningfully moved */
-      if (Math.abs(x - L.x) > 0.05 || Math.abs(y - L.y) > 0.05) {
-        L.x = x; L.y = y;
-        L.el.style.transform = 'translate3d(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px,0)';
+      if (Math.abs(x - L.x) > 0.05 || Math.abs(y - L.y) > 0.05 ||
+          Math.abs(sc - L.s) > 0.0008) {
+        L.x = x; L.y = y; L.s = sc;
+        L.el.style.transform =
+          'translate3d(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px,0) scale(' + sc.toFixed(4) + ')';
       }
     }
   };
@@ -3578,8 +3901,67 @@ window.XY.CONFIG = {
     return Promise.resolve();
   }
 
+  /* --------------------------------------------------------------------------
+   *  The facts, up front.
+   *
+   *  The story takes forty seconds to get to the point, and plenty of people
+   *  will never watch it — they will open the link, glance, and close it. So
+   *  the cover states whose birthday it is and when, and the top bar repeats
+   *  the date in every frame. Both are generated from the same CONFIG.PARTY
+   *  the card uses, so there is exactly one place to edit a date.
+   *
+   *  Anything still holding a "…here" placeholder is skipped rather than
+   *  advertised — a cover reading "Place here" is worse than no line at all.
+   * ------------------------------------------------------------------------*/
+  /* "Friday, August 28th" -> "Fri, Aug 28"; the pill has one line to work in */
+  function shortDate(v) {
+    return String(v)
+      .replace(/^(Mon|Tues|Wednes|Thurs|Fri|Satur|Sun)day,\s*/i,
+               function (m, g) { return g.slice(0, 3) + ', '; })
+      .replace(/\b(Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\b/i,
+               function (m, g) { return g; })
+      .replace(/(\d+)(st|nd|rd|th)\b/i, '$1');
+  }
+
+  /* "3:00pm ’til the sun goes down" -> "3pm". The full, charming version stays
+     on the card; the cover and the pill need the fact, not the flourish. */
+  function shortTime(v) {
+    if (isPlaceholder(v)) return '';
+    return String(v)
+      .split(/\s*[’']til\b|\s+until\b|\s*[-–]\s*/i)[0]
+      .replace(/:00\b/, '')
+      .trim();
+  }
+
+  function shortWhen() {
+    var p = C.PARTY;
+    if (isPlaceholder(p.dateDisplay)) return '';
+    var d = shortDate(p.dateDisplay);
+    var t = shortTime(p.timeDisplay);
+    return t ? d + ' · ' + t : d;
+  }
+
+  function renderCoverFacts(coverEl, brandEl) {
+    var p = C.PARTY, child = C.CHILD;
+    if (brandEl) brandEl.textContent = shortWhen();
+    if (!coverEl) return;
+
+    var bits = [];
+    bits.push('<b>' + XY.esc(child.name) + ' is turning ' +
+              XY.esc(String(child.age)) + '!</b>');
+    if (!isPlaceholder(p.dateDisplay)) {
+      var when = XY.esc(p.dateDisplay);
+      var t = shortTime(p.timeDisplay);
+      if (t) when += ' · ' + XY.esc(t);
+      bits.push('<span class="hl">' + when + '</span>');
+    }
+    bits.push('A butterfly-pirate-robot-dinosaur pool party');
+    coverEl.innerHTML = bits.join('<br>');
+  }
+
   XY.Invite = {
     renderInvite: renderInvite,
+    renderCoverFacts: renderCoverFacts,
     renderForm: renderForm,
     validate: validate,
     showErrors: showErrors,
@@ -3767,6 +4149,19 @@ window.XY.CONFIG = {
     this.fleet = [];
     this.hero = null;
     this.actIndex = { v: 0 };
+    /* The camera. Tweened on master like any other property, and read by the
+       ticker in main.js — so every push, pull and re-frame scrubs exactly. */
+    this.cam = { zoom: 1, fx: 0, fy: 0 };
+  }
+
+  /* Where the camera has to sit to put a point at (xPc, yPc) of the viewport
+     in the middle of the frame. Same arithmetic Act 5's gather uses, kept in
+     one place. Positive fx moves the world left, i.e. the camera right. */
+  function focusOffset(xPc, yPc) {
+    return {
+      fx: (xPc - 50) / 100 * window.innerWidth,
+      fy: (yPc - 50) / 100 * window.innerHeight,
+    };
   }
 
   Stage.prototype.build = function () {
@@ -3796,7 +4191,10 @@ window.XY.CONFIG = {
       /* spread the crew across the stage, arcing gently upward at the edges */
       var t = (i + 0.5) / counts.cast;
       var x = 6 + t * 82;
-      var y = 52 + Math.sin(t * Math.PI) * 14 + rand.range(-5, 5);
+      /* The crew sits in the upper-middle band. It used to start at 52% and
+         arc down, which pushed the outer members into the narration and the
+         controls once the camera started zooming. */
+      var y = 42 + Math.sin(t * Math.PI) * 11 + rand.range(-4, 4);
       host.style.left = x.toFixed(2) + '%';
       host.style.top = y.toFixed(2) + '%';
       host.style.zIndex = String(10 + Math.round(y));
@@ -3808,6 +4206,14 @@ window.XY.CONFIG = {
       c.note = i % XY.SCALE_LEN;
       XY.Creature.animate(c);
       this.cast.push(c);
+    }
+
+    /* ---- pair the crew up so they play with each other ----
+       Neighbours, because two creatures at opposite ends of the stage leaning
+       towards each other reads as a glitch rather than a game. An odd one out
+       is left to its own devices, which is fine — it just breathes. */
+    for (var q = 0; q + 1 < this.cast.length; q += 2) {
+      XY.Creature.play(this.cast[q], this.cast[q + 1], seedBase);
     }
 
     /* ---- the fleet ---- */
@@ -3839,7 +4245,9 @@ window.XY.CONFIG = {
     var hhost = XY.el('div', { class: 'actor actor-hero' + (photoSrc ? ' is-photo' : '') });
     hhost.appendChild(h.svg);
     hhost.style.left = '50%';
-    hhost.style.top = '46%';
+    /* High enough that at her new size — and under the Act 5 push-in — her
+       feet stay above the narration plate instead of running off the bottom. */
+    hhost.style.top = '33%';
     hhost.style.zIndex = '90';
     gsap.set(hhost, { xPercent: -50, autoAlpha: 0, scale: 0.4 });
     gsap.set(R.three, { xPercent: -50, autoAlpha: 0 });
@@ -3866,6 +4274,55 @@ window.XY.CONFIG = {
        callbacks, so scrubbing backwards works exactly as well as forwards. */
     tl.to(this.actIndex, { v: ACTS.length - 1, duration: END, ease: 'none' }, 0);
 
+    /* ---------------- THE CAMERA ----------------
+       Every move is a tween on `this.cam`, which the ticker reads. Nothing
+       here is a callback, so the camera is in the right place at every point
+       of a scrub, in both directions — the same reason the morphs and the
+       narration are tweens rather than calls.
+
+       `focusOffset` centres a point given as a percentage of the viewport.
+       Actors are positioned as a percentage of their layer (which bleeds 8%
+       past the viewport), so `actorCentre` converts one to the other and adds
+       half the actor's own box to aim at its middle rather than its corner. */
+    var cam = this.cam;
+    function actorCentre(host, homeX, homeY) {
+      var xPc = -8 + homeX * 1.16 + (host.offsetWidth  / vw) * 50;
+      var yPc = -8 + homeY * 1.16 + (host.offsetHeight / vh) * 50;
+      return focusOffset(xPc, yPc);
+    }
+    /* Push the camera to `zoom`, centred on `f` ({fx, fy}), arriving at `at`. */
+    function camTo(zoom, f, at, dur, ease) {
+      tl.to(cam, {
+        zoom: zoom, fx: f.fx, fy: f.fy,
+        duration: dur, ease: ease || 'power2.inOut',
+      }, at);
+    }
+    var CENTRE = { fx: 0, fy: 0 };
+
+    /* Act 0 — wide and still. Nothing to look at yet but the title. */
+    tl.set(cam, { zoom: 1, fx: 0, fy: 0 }, 0);
+    /* Act 1 — a slow drift right with the ship as it crosses. */
+    camTo(1.16, focusOffset(58, 62), 6.2, 4.5, 'sine.inOut');
+    /* Act 2 — the close-ups the centrepiece never had. The camera steps from
+       creature to creature as each one changes, then eases back out. */
+    this.cast.forEach(function (c, i) {
+      if (i > 4) return;                       // the first five, then release
+      camTo(1.5, actorCentre(c.host, c.homeX, c.homeY), 13.8 + i * 1.0, 0.9);
+    });
+    /* Act 3 — pull all the way back for the climb. The release. */
+    camTo(1.0, CENTRE, 20.6, 2.6, 'power2.out');
+    /* Act 4 — rise to the fleet, then tilt back down as the beams reach. */
+    camTo(1.28, focusOffset(50, 30), 27.0, 2.4);
+    camTo(1.14, focusOffset(50, 52), 31.0, 2.2);
+    /* Act 5 — the big push onto Xyla, and hold her huge. */
+    /* A gentler push than the other acts get. She is already enormous in CSS
+       terms, and anything past ~1.15 here scales the "3rd BIRTHDAY" clean off
+       the top of the frame — layers zoom about the middle, so content near the
+       edge travels furthest. */
+    camTo(1.15, focusOffset(50, 44), 34.6, 1.8, 'power3.out');
+    /* Act 6 — ease back so the invitation has room to land. */
+    camTo(1.08, CENTRE, 40.6, 1.8, 'power2.inOut');
+
     /* ---------------- ACT 0 — the cover ---------------- */
     var title = R.title;
     tl.fromTo(title.querySelectorAll('.kicker'),
@@ -3876,17 +4333,27 @@ window.XY.CONFIG = {
         ease: 'back.out(1.7)', stagger: 0.13 }, 0.5);
     tl.fromTo(title.querySelectorAll('.sub'),
       { autoAlpha: 0, y: 16 }, { autoAlpha: 1, y: 0, duration: 0.8 }, 1.4);
+    /* the facts land almost immediately after the title — this is the beat
+       that turns a nice animation into an invitation */
+    tl.fromTo(title.querySelectorAll('.cover-facts'),
+      { autoAlpha: 0, y: 22, scale: 0.94 },
+      { autoAlpha: 1, y: 0, scale: 1, duration: 0.8, ease: 'back.out(1.5)' }, 1.9);
 
     /* ---------------- ACT 1 — the Lemon Sea ---------------- */
     tl.to(title, { autoAlpha: 0, y: -50, scale: 0.9, duration: 1.0, ease: 'power2.in' }, 5.4);
     /* the ship sails in and rocks */
     tl.fromTo(this.ship, { x: -520, y: 380, rotation: -3 },
       { x: 340, duration: 4.2, ease: 'power1.inOut' }, 5.8);
+    /* a real rock on the swell, rather than sliding across like a decal */
+    tl.to(this.ship, { rotation: 3.5, duration: 1.35, repeat: 3, yoyo: true,
+                       ease: 'sine.inOut', transformOrigin: '100px 90px' }, 5.8);
     /* the crew lifts off the rigging, one after another */
     this.cast.forEach(function (c, i) {
+      /* dip before the rise — anticipation is what makes an entrance land */
+      tl.to(c.host, { y: 74, duration: 0.16, ease: 'power2.in' }, 7.06 + i * 0.24);
       tl.to(c.host, {
-        autoAlpha: 1, y: 0, scale: 1, duration: 0.9, ease: 'back.out(1.5)'
-      }, 7.2 + i * 0.24);
+        autoAlpha: 1, y: 0, scale: 1, duration: 0.95, ease: 'back.out(2.2)'
+      }, 7.22 + i * 0.24);
     });
 
     /* ---------------- ACT 2 — the Changing ----------------
@@ -3902,12 +4369,24 @@ window.XY.CONFIG = {
       var at = 14 + i * 0.5;
       var ng = XY.Creature.genome(c.genome.seed + ':m', {});
       tl.add(XY.Creature.morphTo(c, ng, { paused: true }), at);
-      /* the confetti puff stays a callback — it is decoration, and firing a
-         particle burst while scrubbing backwards would be nonsense */
-      tl.call(function () { self.onMorph && self.onMorph(c); }, null, at + 0.2);
+      /* the confetti puff and the camera knock stay callbacks — they are
+         impulses, and firing them while scrubbing backwards would be nonsense */
+      tl.call(function () {
+        self.onMorph && self.onMorph(c);
+        XY.shake && XY.shake(6, 0.25);
+      }, null, at + 0.2);
       /* a little hop on the beat, which is staging, so it lives on master */
       tl.to(c.host, { y: -26, duration: 0.3, ease: 'power2.out' }, at);
       tl.to(c.host, { y: 0, duration: 0.7, ease: 'bounce.out' }, at + 0.3);
+
+      /* A SECOND wave, on a different rhythm and running the other way down
+         the line. One pass read as a single scripted event; two passes read as
+         something spreading through the crew, which is the actual story. */
+      var at2 = 17.6 + (self.cast.length - 1 - i) * 0.34;
+      var ng2 = XY.Creature.genome(c.genome.seed + ':m2', {});
+      tl.add(XY.Creature.morphTo(c, ng2, { paused: true, duration: 0.7 }), at2);
+      tl.to(c.host, { y: -18, duration: 0.24, ease: 'power2.out' }, at2);
+      tl.to(c.host, { y: 0, duration: 0.6, ease: 'bounce.out' }, at2 + 0.24);
     });
 
     /* ---------------- ACT 3 — the climb ----------------
@@ -3921,40 +4400,76 @@ window.XY.CONFIG = {
       tl.to(c.host, { y: -vh * 0.08, duration: 3, ease: 'sine.inOut' }, 21.5 + i * 0.1);
     });
 
-    /* ---------------- ACT 4 — the fleet arrives ---------------- */
+    /* ---------------- ACT 4 — the fleet arrives ----------------
+       Each saucer is paired with a crew member and beams THAT ONE, so the
+       beams have something to land on. `u.target` is what the aiming pass in
+       main.js reads every frame while a beam is lit. */
     this.fleet.forEach(function (u, i) {
+      u.target = self.cast[i % self.cast.length] || null;
       tl.to(u.host, {
         autoAlpha: 1, y: 0, scale: 1, duration: 1.5, ease: 'power2.out'
       }, 27 + i * 0.35);
+      /* slide over the crew member it is coming for */
+      if (u.target) {
+        tl.to(u.host, {
+          x: (u.target.homeX - u.homeX) / 100 * vw * 0.9,
+          duration: 2.0, ease: 'power2.inOut',
+        }, 28.2 + i * 0.2);
+      }
       tl.add(XY.Ufo.beamOn(u, 0.5), 30 + i * 0.3);
+      tl.call(function () { XY.shake && XY.shake(7, 0.35); }, null, 30 + i * 0.3);
       tl.add(XY.Ufo.beamOff(u, 0.4), 33.4 + i * 0.2);
     });
-    /* Creatures get caught in the beams and drift upward. These use absolute
-       values around the climb offset rather than relative ones, so that
-       scrubbing backwards lands on exactly the same numbers as playing
-       forwards — relative tweens resolve their start value on first render and
-       drift when a timeline is seeked. */
+    /* Creatures get caught in the beams and drift upward, and CHANGE while
+       they are up there — the morph happens where the eye already is. These
+       use absolute values around the climb offset rather than relative ones,
+       so that scrubbing backwards lands on exactly the same numbers as
+       playing forwards; relative tweens resolve their start value on first
+       render and drift when a timeline is seeked. */
     var climbY = -vh * 0.08;
     this.cast.forEach(function (c, i) {
-      tl.to(c.host, { y: climbY - 70, rotation: 12, duration: 1.4, ease: 'sine.inOut' }, 30.4 + i * 0.16);
+      var lift = 30.4 + i * 0.16;
+      tl.to(c.host, { y: climbY - 130, rotation: 14, duration: 1.4, ease: 'sine.inOut' }, lift);
+      /* the change, mid-beam */
+      var bg = XY.Creature.genome(c.genome.seed + ':beam', {});
+      tl.add(XY.Creature.morphTo(c, bg, { paused: true, duration: 0.7 }), lift + 0.75);
       tl.to(c.host, { y: climbY, rotation: 0, duration: 1.1, ease: 'bounce.out' }, 33 + i * 0.14);
+      tl.call(function () { XY.shake && XY.shake(5, 0.22); }, null, 33.9 + i * 0.14);
     });
 
-    /* ---------------- ACT 5 — Captain Xyla ---------------- */
+    /* ---------------- ACT 5 — Captain Xyla ----------------
+       She overshoots past full size and settles back, which reads as landing
+       with weight rather than simply appearing. */
     tl.fromTo(this.hero.host,
       { autoAlpha: 0, scale: 0.4, y: 90 },
-      { autoAlpha: 1, scale: 1, y: 0, duration: 1.4, ease: 'back.out(1.5)' }, 34.8);
+      { autoAlpha: 1, scale: 1.06, y: 0, duration: 1.4, ease: 'back.out(1.6)' }, 34.8);
+    tl.to(this.hero.host, { scale: 1, duration: 0.7, ease: 'elastic.out(1, 0.55)' }, 36.0);
+    /* the biggest hit in the piece — her feet touching down */
+    tl.call(function () { XY.shake && XY.shake(16, 0.7); }, null, 35.9);
+    /* The saucers have done their job — they lift away and dim, which clears
+       the top of the frame for the "3rd BIRTHDAY" and reads as them leaving
+       rather than simply being drawn over. */
+    this.fleet.forEach(function (u, i) {
+      tl.to(u.host, { y: -vh * 0.16, autoAlpha: 0.42, duration: 1.6,
+                      ease: 'power2.inOut' }, 35.0 + i * 0.12);
+    });
     tl.fromTo(R.three,
       { autoAlpha: 0, scale: 0.2, rotate: -25 },
       { autoAlpha: 1, scale: 1, rotate: 0, duration: 1.2, ease: 'back.out(2)' }, 36.2);
-    tl.call(function () { self.onCheer && self.onCheer(); }, null, 36.4);
+    tl.call(function () {
+      self.onCheer && self.onCheer();
+      XY.shake && XY.shake(11, 0.5);
+    }, null, 36.4);
     /* The crew gathers around her — again by transform. Target positions are
        resolved to pixels once, here, from each actor's own home percentage. */
     this.cast.forEach(function (c, i) {
+      /* They gather around her in pairs, alternating sides and stepping out.
+         Kept high and tight: the camera is pushed in here, so anything below
+         about 60% is outside the frame by the time it arrives. */
       var side = i % 2 ? 1 : -1;
-      var spread = 15 + Math.floor(i / 2) * 10;
+      var spread = 17 + Math.floor(i / 2) * 9;
       var targetXpc = 50 + side * spread;
-      var targetYpc = 56 + (i % 3) * 6;
+      var targetYpc = 46 + (i % 3) * 5;
       tl.to(c.host, {
         x: (targetXpc - c.homeX) / 100 * vw,
         y: (targetYpc - c.homeY) / 100 * vh,
@@ -3986,8 +4501,12 @@ window.XY.CONFIG = {
     }
 
     /* ---------------- ACT 6 — the invitation ---------------- */
-    tl.to([this.hero.host, R.three], { y: -40, scale: 0.78, duration: 1.2, ease: 'power2.inOut' }, 41);
-    tl.call(function () { self.onInvite && self.onInvite(); }, null, 41.4);
+    /* She shrinks only a little — she is still the biggest thing on screen
+       when the invitation lands. The `3` moves further to make the room. */
+    tl.to(this.hero.host, { y: -30, scale: 0.92, duration: 1.2, ease: 'power2.inOut' }, 40.4);
+    tl.to(R.three, { y: -90, scale: 0.7, duration: 1.2, ease: 'power2.inOut' }, 40.4);
+    /* the card comes up on the celebration, not after it has died down */
+    tl.call(function () { self.onInvite && self.onInvite(); }, null, 38.6);
     tl.to({}, { duration: 1 }, END - 1);   // let it breathe at the end
 
     this.master = tl;
@@ -4076,6 +4595,14 @@ window.XY.CONFIG = {
     XY.Invite.renderInvite(R.card);
     XY.Invite.renderForm(R.rsvp);
 
+    /* ---- say what this is, immediately ----
+       Both of these read CONFIG.PARTY, so the date on the cover and the date
+       on the card cannot drift apart. Someone who opens the link and never
+       presses play still learns whose birthday it is and when. */
+    XY.Invite.renderCoverFacts(
+      document.getElementById('cover-facts'),
+      document.getElementById('brand-when'));
+
     /* ---- sky ---- */
     var sky = new XY.Sky(R.sky, quality);
     if (!sky.ok) {
@@ -4096,6 +4623,13 @@ window.XY.CONFIG = {
     parallax.add(R.fleet, 0.5);
     parallax.add(R.cast, 0.74);
     parallax.add(document.getElementById('l-fore'), 0.95);
+
+    /* One place anything in the piece can knock the camera. Suppressed
+       wholesale in calm mode, so a reduced-motion visitor never gets hit. */
+    XY.shake = function (amp, dur) {
+      if (reduced) return;
+      parallax.shake(amp, dur);
+    };
 
     /* ---- audio ---- */
     var audio = new XY.Audio();
@@ -4294,6 +4828,7 @@ window.XY.CONFIG = {
       if (!c) return;
       XY.Creature.react(c);
       audio.blip(c.note);
+      XY.shake(4, 0.18);
       if (!reduced) {
         var r = host.getBoundingClientRect();
         confetti.burst(r.left + r.width / 2, r.top + r.height * 0.3, 10, { power: 0.7 });
@@ -4325,8 +4860,15 @@ window.XY.CONFIG = {
       });
       if (!best) { u.busy = false; return; }
 
-      var tl = gsap.timeline({ onComplete: function () { u.busy = false; } });
+      /* what this saucer's beam should track for the duration of the grab */
+      var prevTarget = u.target;
+      u.target = best;
+
+      var tl = gsap.timeline({
+        onComplete: function () { u.busy = false; u.target = prevTarget; },
+      });
       tl.add(XY.Ufo.beamOn(u, 0.4));
+      tl.call(function () { XY.shake(8, 0.4); }, null, 0.1);
       tl.to(best.host, { y: -window.innerHeight * 0.28, rotation: 360, scale: 0.55,
                          duration: 1.1, ease: 'power1.inOut' }, 0.25);
       tl.call(function () {
@@ -4345,13 +4887,53 @@ window.XY.CONFIG = {
     /* ======================================================================
      *  The single ticker
      * ==================================================================== */
+    var dofOK = quality === 'high' && !reduced;
+    var dofOn = false;
+    var aimPairs = [];              // reused every frame, never reallocated
     var last = performance.now() / 1000;
     gsap.ticker.add(function () {
       var now = performance.now() / 1000;
       var dt = Math.min(0.05, now - last);
       last = now;
 
+      /* The camera. The story tweens stage.cam on the master timeline; the
+         rig just reads it here, so a camera move is as scrubbable as any
+         other tween. Calm mode holds the camera wide and still. */
+      if (reduced) {
+        parallax.zoom = 1; parallax.fx = 0; parallax.fy = 0;
+      } else {
+        parallax.zoom = stage.cam.zoom;
+        parallax.fx = stage.cam.fx;
+        parallax.fy = stage.cam.fy;
+      }
       parallax.update(dt);
+
+      /* Depth of field, toggled by class rather than tweened — see style.css.
+         Only the top quality tier pays for it, and only while the camera is
+         actually pushed in on the cast. */
+      if (dofOK) {
+        var wantDof = parallax.zoom > 1.22;
+        if (wantDof !== dofOn) {
+          dofOn = wantDof;
+          R.far.classList.toggle('is-defocused', wantDof);
+          R.mid.classList.toggle('is-defocused', wantDof);
+        }
+      }
+
+      /* Aim every lit tractor beam at whatever it is currently catching.
+         Only lit beams are measured, so this costs nothing outside Act 4 and
+         an abduction. Nothing else can keep a beam attached: the saucers and
+         the crew are in different layers, which pan AND scale by different
+         amounts, so no fixed geometry stays true. */
+      aimPairs.length = 0;
+      for (var fi = 0; fi < stage.fleet.length; fi++) {
+        var U = stage.fleet[fi];
+        if (!U.target) continue;
+        if (gsap.getProperty(U.beamFx, 'opacity') > 0.01) {
+          aimPairs.push({ u: U, el: U.target.host });
+        }
+      }
+      if (aimPairs.length) XY.Ufo.aimAll(aimPairs);
 
       var bands = audio.sample(dt);
       if (sky.ok) {
@@ -4420,7 +5002,7 @@ window.XY.CONFIG = {
       R.gate.hidden = true;
       if (P.seek !== undefined) {
         master.pause(parseFloat(P.seek) || 0);
-        if (parseFloat(P.seek) >= 41) openSheet('card');
+        if (parseFloat(P.seek) >= 38.6) openSheet('card');
       } else if (!reduced) master.play();
       syncPlay();
     }

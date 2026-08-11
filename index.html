@@ -22,13 +22,21 @@
   <div class="layer" id="l-mid"></div>
   <div class="layer" id="l-fleet"></div>
   <div class="layer" id="l-cast">
+    <!-- The backdrop behind Captain Xyla at the reveal. It says "3rd BIRTHDAY"
+         rather than a bare numeral, so the single most-photographed frame of
+         the whole piece states what the occasion is on its own. -->
     <div id="bigthree" class="bigthree">
-      <svg viewBox="0 0 200 200" aria-hidden="true" focusable="false">
-        <text x="100" y="152" text-anchor="middle"
+      <svg viewBox="0 0 620 210" aria-hidden="true" focusable="false">
+        <text x="310" y="152" text-anchor="middle"
               font-family="ui-rounded, 'SF Pro Rounded', system-ui, sans-serif"
-              font-size="170" font-weight="900"
+              font-weight="900"
               fill="#FFD84D" stroke="#2A1B4A" stroke-width="9"
-              paint-order="stroke" style="letter-spacing:-.04em">3</text>
+              paint-order="stroke">
+          <tspan font-size="150" style="letter-spacing:-.04em">3</tspan><tspan
+                 font-size="68" dy="-52">rd</tspan><tspan
+                 font-size="62" dy="52" dx="26"
+                 style="letter-spacing:.06em">BIRTHDAY</tspan>
+        </text>
       </svg>
     </div>
   </div>
@@ -39,16 +47,25 @@
 <div id="ui">
 
   <div class="topbar">
-    <span class="brandmark">🍋 Xyla’s 3rd Birthday</span>
+    <!-- Filled from CONFIG.PARTY at boot so it can never drift from the card.
+         The second line is the whole point: whose birthday and when, on screen
+         in every single frame of the story. -->
+    <span class="brandmark" id="brandmark">
+      <b>🍋 Xyla’s 3rd Birthday</b>
+      <i id="brand-when"></i>
+    </span>
     <div class="topbar-actions">
       <button type="button" class="btn btn-primary" id="open-details">Details &amp; RSVP</button>
     </div>
   </div>
 
   <div class="storytitle" id="storytitle">
-    <p class="kicker">A storybook invitation</p>
+    <p class="kicker">You’re invited to</p>
     <h1><span class="title-word">Captain</span> <span class="title-word">Xyla</span></h1>
     <p class="sub">and the Lemon Sea</p>
+    <!-- The plain facts, on the cover, at second two. Everything above this
+         line is atmosphere; this is the part Grandma actually needs. -->
+    <p class="cover-facts" id="cover-facts"></p>
   </div>
 
   <!-- One line of story per act. Decorative narration: the real information

@@ -268,8 +268,67 @@
     return Promise.resolve();
   }
 
+  /* --------------------------------------------------------------------------
+   *  The facts, up front.
+   *
+   *  The story takes forty seconds to get to the point, and plenty of people
+   *  will never watch it — they will open the link, glance, and close it. So
+   *  the cover states whose birthday it is and when, and the top bar repeats
+   *  the date in every frame. Both are generated from the same CONFIG.PARTY
+   *  the card uses, so there is exactly one place to edit a date.
+   *
+   *  Anything still holding a "…here" placeholder is skipped rather than
+   *  advertised — a cover reading "Place here" is worse than no line at all.
+   * ------------------------------------------------------------------------*/
+  /* "Friday, August 28th" -> "Fri, Aug 28"; the pill has one line to work in */
+  function shortDate(v) {
+    return String(v)
+      .replace(/^(Mon|Tues|Wednes|Thurs|Fri|Satur|Sun)day,\s*/i,
+               function (m, g) { return g.slice(0, 3) + ', '; })
+      .replace(/\b(Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\b/i,
+               function (m, g) { return g; })
+      .replace(/(\d+)(st|nd|rd|th)\b/i, '$1');
+  }
+
+  /* "3:00pm ’til the sun goes down" -> "3pm". The full, charming version stays
+     on the card; the cover and the pill need the fact, not the flourish. */
+  function shortTime(v) {
+    if (isPlaceholder(v)) return '';
+    return String(v)
+      .split(/\s*[’']til\b|\s+until\b|\s*[-–]\s*/i)[0]
+      .replace(/:00\b/, '')
+      .trim();
+  }
+
+  function shortWhen() {
+    var p = C.PARTY;
+    if (isPlaceholder(p.dateDisplay)) return '';
+    var d = shortDate(p.dateDisplay);
+    var t = shortTime(p.timeDisplay);
+    return t ? d + ' · ' + t : d;
+  }
+
+  function renderCoverFacts(coverEl, brandEl) {
+    var p = C.PARTY, child = C.CHILD;
+    if (brandEl) brandEl.textContent = shortWhen();
+    if (!coverEl) return;
+
+    var bits = [];
+    bits.push('<b>' + XY.esc(child.name) + ' is turning ' +
+              XY.esc(String(child.age)) + '!</b>');
+    if (!isPlaceholder(p.dateDisplay)) {
+      var when = XY.esc(p.dateDisplay);
+      var t = shortTime(p.timeDisplay);
+      if (t) when += ' · ' + XY.esc(t);
+      bits.push('<span class="hl">' + when + '</span>');
+    }
+    bits.push('A butterfly-pirate-robot-dinosaur pool party');
+    coverEl.innerHTML = bits.join('<br>');
+  }
+
   XY.Invite = {
     renderInvite: renderInvite,
+    renderCoverFacts: renderCoverFacts,
     renderForm: renderForm,
     validate: validate,
     showErrors: showErrors,

@@ -3,8 +3,8 @@
  *  ---------------------------------------------------------------------------
  *  One fullscreen WebGL triangle running a soft, high-value fragment shader:
  *  a vertical pastel gradient, domain-warped cotton-cloud bands, a portal bloom
- *  that opens as the story advances, a twinkling star field, and a wide gentle
- *  rainbow arc.
+ *  that opens as the story advances, a twinkling star field, and a banded
+ *  rainbow (primary plus a reversed secondary) that the clouds pass in front of.
  *
  *  Two hard rules, both non-negotiable for a page a small child will look at:
  *    - Nothing in here oscillates in brightness faster than ~1Hz. No strobing,
@@ -52,6 +52,30 @@
     '  return v;',
     '}',
 
+    'vec3 hsv2rgb(vec3 c){',
+    '  vec3 k = abs(fract(c.xxx + vec3(0.0, 0.6666667, 0.3333333)) * 6.0 - 3.0);',
+    '  return c.z * mix(vec3(1.0), clamp(k - 1.0, 0.0, 1.0), c.y);',
+    '}',
+
+    /* --------------------------------------------------------------------
+     *  A rainbow is bands of colour laid ACROSS the arc, not one colour
+     *  smeared ALONG it. `band` is the normalised distance through the arc's
+     *  thickness — 0 at the inner edge, 1 at the outer — so quantising it
+     *  into seven steps gives seven concentric stripes. Only the last 14% of
+     *  each stripe ramps into the next, which keeps the bands flat and
+     *  distinct while stopping them from aliasing into stairsteps on a phone.
+     * ------------------------------------------------------------------*/
+    'vec3 bowColor(float band, float flip){',
+    '  float b  = mix(band, 1.0 - band, flip);',
+    '  float bq = b * 7.0;',
+    '  float k  = (floor(bq) + smoothstep(0.86, 1.0, fract(bq))) / 6.0;',
+    '  return hsv2rgb(vec3(0.80 * (1.0 - k), 0.72, 1.0));',
+    '}',
+
+    'float bowMask(float band){',
+    '  return smoothstep(0.0, 0.09, band) * smoothstep(1.0, 0.91, band);',
+    '}',
+
     'void main(){',
     '  vec2 uv = gl_FragCoord.xy / uRes.xy;',
     '  vec2 p  = (gl_FragCoord.xy - 0.5 * uRes.xy) / min(uRes.x, uRes.y);',
@@ -60,6 +84,18 @@
     /* base vertical gradient, three stops */
     '  vec3 col = mix(uPalC, uPalB, smoothstep(0.0, 0.55, uv.y));',
     '  col = mix(col, uPalA, smoothstep(0.45, 1.0, uv.y));',
+
+    /* The rainbow is drawn BEFORE the clouds, so the clouds pass in front of
+       it the way they do in the sky, instead of it being painted on top of
+       everything like a sticker. */
+    '  float rr = length(p - vec2(0.0, -0.58));',
+    '  float bowFade = smoothstep(0.12, 0.5, uProgress);',
+    '  float b1 = (rr - 0.58) / 0.19;',
+    '  col = mix(col, bowColor(b1, 0.0), bowMask(b1) * 0.44 * bowFade);',
+    /* the secondary bow — dimmer, wider, and its colours run the other way,
+       which is the detail that makes a drawn rainbow read as a real one */
+    '  float b2 = (rr - 0.86) / 0.13;',
+    '  col = mix(col, bowColor(b2, 1.0), bowMask(b2) * 0.13 * bowFade);',
 
     /* domain-warped cloud bands — soft, wide, slow */
     '  vec2 q = vec2(fbm(p * 1.6 + vec2(t, 0.0)), fbm(p * 1.6 + vec2(5.2, -t)));',
@@ -78,11 +114,6 @@
     '  col = mix(col, vec3(1.0, 0.97, 0.88), ring * 0.55 * uPortal);',
     '  float halo = smoothstep(0.9 * uPortal, 0.25 * uPortal, d) - smoothstep(0.55 * uPortal, 0.1, d);',
     '  col += max(halo, 0.0) * 0.18 * vec3(1.0, 0.8, 0.95) * uPortal;',
-
-    /* a wide, very gentle rainbow arc. Hue drifts slowly; it never strobes. */
-    '  float arc = smoothstep(0.03, 0.0, abs(length(p - vec2(0.0, -0.75)) - 0.85));',
-    '  vec3 rainbow = 0.5 + 0.5 * cos(6.2831 * (vec3(0.0, 0.33, 0.67) + p.x * 0.6 + t * 0.4));',
-    '  col = mix(col, rainbow, arc * 0.22 * smoothstep(0.15, 0.6, uProgress));',
 
     /* twinkling stars — only in the darker upper half, only when the story
        has climbed into space */

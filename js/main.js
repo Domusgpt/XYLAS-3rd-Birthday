@@ -69,6 +69,14 @@
     XY.Invite.renderInvite(R.card);
     XY.Invite.renderForm(R.rsvp);
 
+    /* ---- say what this is, immediately ----
+       Both of these read CONFIG.PARTY, so the date on the cover and the date
+       on the card cannot drift apart. Someone who opens the link and never
+       presses play still learns whose birthday it is and when. */
+    XY.Invite.renderCoverFacts(
+      document.getElementById('cover-facts'),
+      document.getElementById('brand-when'));
+
     /* ---- sky ---- */
     var sky = new XY.Sky(R.sky, quality);
     if (!sky.ok) {
@@ -89,6 +97,13 @@
     parallax.add(R.fleet, 0.5);
     parallax.add(R.cast, 0.74);
     parallax.add(document.getElementById('l-fore'), 0.95);
+
+    /* One place anything in the piece can knock the camera. Suppressed
+       wholesale in calm mode, so a reduced-motion visitor never gets hit. */
+    XY.shake = function (amp, dur) {
+      if (reduced) return;
+      parallax.shake(amp, dur);
+    };
 
     /* ---- audio ---- */
     var audio = new XY.Audio();
@@ -287,6 +302,7 @@
       if (!c) return;
       XY.Creature.react(c);
       audio.blip(c.note);
+      XY.shake(4, 0.18);
       if (!reduced) {
         var r = host.getBoundingClientRect();
         confetti.burst(r.left + r.width / 2, r.top + r.height * 0.3, 10, { power: 0.7 });
@@ -318,8 +334,15 @@
       });
       if (!best) { u.busy = false; return; }
 
-      var tl = gsap.timeline({ onComplete: function () { u.busy = false; } });
+      /* what this saucer's beam should track for the duration of the grab */
+      var prevTarget = u.target;
+      u.target = best;
+
+      var tl = gsap.timeline({
+        onComplete: function () { u.busy = false; u.target = prevTarget; },
+      });
       tl.add(XY.Ufo.beamOn(u, 0.4));
+      tl.call(function () { XY.shake(8, 0.4); }, null, 0.1);
       tl.to(best.host, { y: -window.innerHeight * 0.28, rotation: 360, scale: 0.55,
                          duration: 1.1, ease: 'power1.inOut' }, 0.25);
       tl.call(function () {
@@ -338,13 +361,53 @@
     /* ======================================================================
      *  The single ticker
      * ==================================================================== */
+    var dofOK = quality === 'high' && !reduced;
+    var dofOn = false;
+    var aimPairs = [];              // reused every frame, never reallocated
     var last = performance.now() / 1000;
     gsap.ticker.add(function () {
       var now = performance.now() / 1000;
       var dt = Math.min(0.05, now - last);
       last = now;
 
+      /* The camera. The story tweens stage.cam on the master timeline; the
+         rig just reads it here, so a camera move is as scrubbable as any
+         other tween. Calm mode holds the camera wide and still. */
+      if (reduced) {
+        parallax.zoom = 1; parallax.fx = 0; parallax.fy = 0;
+      } else {
+        parallax.zoom = stage.cam.zoom;
+        parallax.fx = stage.cam.fx;
+        parallax.fy = stage.cam.fy;
+      }
       parallax.update(dt);
+
+      /* Depth of field, toggled by class rather than tweened — see style.css.
+         Only the top quality tier pays for it, and only while the camera is
+         actually pushed in on the cast. */
+      if (dofOK) {
+        var wantDof = parallax.zoom > 1.22;
+        if (wantDof !== dofOn) {
+          dofOn = wantDof;
+          R.far.classList.toggle('is-defocused', wantDof);
+          R.mid.classList.toggle('is-defocused', wantDof);
+        }
+      }
+
+      /* Aim every lit tractor beam at whatever it is currently catching.
+         Only lit beams are measured, so this costs nothing outside Act 4 and
+         an abduction. Nothing else can keep a beam attached: the saucers and
+         the crew are in different layers, which pan AND scale by different
+         amounts, so no fixed geometry stays true. */
+      aimPairs.length = 0;
+      for (var fi = 0; fi < stage.fleet.length; fi++) {
+        var U = stage.fleet[fi];
+        if (!U.target) continue;
+        if (gsap.getProperty(U.beamFx, 'opacity') > 0.01) {
+          aimPairs.push({ u: U, el: U.target.host });
+        }
+      }
+      if (aimPairs.length) XY.Ufo.aimAll(aimPairs);
 
       var bands = audio.sample(dt);
       if (sky.ok) {
@@ -413,7 +476,7 @@
       R.gate.hidden = true;
       if (P.seek !== undefined) {
         master.pause(parseFloat(P.seek) || 0);
-        if (parseFloat(P.seek) >= 41) openSheet('card');
+        if (parseFloat(P.seek) >= 38.6) openSheet('card');
       } else if (!reduced) master.play();
       syncPlay();
     }
