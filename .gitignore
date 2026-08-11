@@ -1,3 +1,15 @@
 tools/shots/
 .DS_Store
 node_modules/
+
+# Credentials must never land in this repo. The publish script takes the path
+# to a service-account key as an argument and reads it from OUTSIDE the repo,
+# precisely so there is nothing here to leak.
+*-service-account*.json
+*service_account*.json
+*credentials*.json
+gcp-*.json
+sa-*.json
+key.json
+.env
+.env.*
