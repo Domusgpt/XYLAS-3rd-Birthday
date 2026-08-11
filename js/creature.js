@@ -653,9 +653,23 @@
     opts = opts || {};
     var dur = opts.duration || 0.9;
     var target = spec(newGenome);
-    /* `paused` lets a caller add this to the master timeline instead of
-       playing it immediately — which is what makes the morph scrubbable. */
-    var tl = gsap.timeline({ paused: !!opts.paused });
+
+    /* NEVER build this paused.
+     *
+     * It used to be `gsap.timeline({ paused: !!opts.paused })` so that callers
+     * could add it to the master timeline — but a paused child does not
+     * advance when its parent plays. GSAP zeroes a paused animation's time
+     * scale, and the parent honours that, so every scripted morph in the story
+     * sat frozen on frame zero. The crew never changed once. The tap-to-abduct
+     * morph worked, which is exactly why it went unnoticed: that path is the
+     * one caller that did not pass `paused`.
+     *
+     * Unpaused is also correct for the add-to-master case: `master.add(tl)`
+     * reparents the timeline off the root in the same synchronous pass it is
+     * built in, so it cannot play early. Callers must add it synchronously,
+     * which every caller does.
+     */
+    var tl = gsap.timeline();
 
     /* anticipation: squash down, then spring out */
     tl.to(c.body, { scaleY: 0.7, scaleX: 1.24, duration: 0.18, ease: 'power2.in',

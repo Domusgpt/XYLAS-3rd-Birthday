@@ -389,7 +389,7 @@
     this.cast.forEach(function (c, i) {
       var at = 14 + i * 0.5;
       var ng = XY.Creature.genome(c.genome.seed + ':m', {});
-      tl.add(XY.Creature.morphTo(c, ng, { paused: true }), at);
+      tl.add(XY.Creature.morphTo(c, ng), at);
       /* the confetti puff and the camera knock stay callbacks — they are
          impulses, and firing them while scrubbing backwards would be nonsense */
       tl.call(function () {
@@ -405,7 +405,7 @@
          something spreading through the crew, which is the actual story. */
       var at2 = 17.6 + (self.cast.length - 1 - i) * 0.34;
       var ng2 = XY.Creature.genome(c.genome.seed + ':m2', {});
-      tl.add(XY.Creature.morphTo(c, ng2, { paused: true, duration: 0.7 }), at2);
+      tl.add(XY.Creature.morphTo(c, ng2, { duration: 0.7 }), at2);
       tl.to(c.host, { y: -18, duration: 0.24, ease: 'power2.out' }, at2);
       tl.to(c.host, { y: 0, duration: 0.6, ease: 'bounce.out' }, at2 + 0.24);
     });
@@ -453,7 +453,7 @@
       tl.to(c.host, { y: climbY - 130, rotation: 14, duration: 1.4, ease: 'sine.inOut' }, lift);
       /* the change, mid-beam */
       var bg = XY.Creature.genome(c.genome.seed + ':beam', {});
-      tl.add(XY.Creature.morphTo(c, bg, { paused: true, duration: 0.7 }), lift + 0.75);
+      tl.add(XY.Creature.morphTo(c, bg, { duration: 0.7 }), lift + 0.75);
       tl.to(c.host, { y: climbY, rotation: 0, duration: 1.1, ease: 'bounce.out' }, 33 + i * 0.14);
       tl.call(function () { XY.shake && XY.shake(5, 0.22); }, null, 33.9 + i * 0.14);
     });

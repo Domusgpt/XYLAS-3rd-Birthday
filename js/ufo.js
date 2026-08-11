@@ -116,7 +116,11 @@
     /* gradient for the tractor beam — a def, not a filter */
     var defs = XY.svgEl('defs');
     var grad = XY.svgEl('linearGradient', { id: id + '-beam', x1: '0', y1: '0', x2: '0', y2: '1' });
-    [['0%', 0.5], ['55%', 0.2], ['100%', 0]].forEach(function (s) {
+    /* The tail must not fade to nothing. The beam is now stretched to reach
+       its target, so a gradient that hits zero opacity at 100% made the last
+       third invisible and the beam looked like it stopped short of the
+       creature it was actually holding. */
+    [['0%', 0.52], ['62%', 0.3], ['100%', 0.16]].forEach(function (s) {
       grad.appendChild(XY.svgEl('stop', { offset: s[0], 'stop-color': g.portColor, 'stop-opacity': s[1] }));
     });
     defs.appendChild(grad);
@@ -175,7 +179,7 @@
     /* a pool of light where the beam lands */
     var pool = XY.svgEl('path', {
       d: path.blob(100, BEAM_Y1 - 6, built.w * 0.62, 16, { points: 14, wobble: 0 }),
-      fill: g.portColor, opacity: 0.3
+      fill: g.portColor, opacity: 0.45
     });
     beamFx.appendChild(pool);
     rig.appendChild(beamG);
@@ -257,33 +261,47 @@
    * ------------------------------------------------------------------------*/
   function aimAll(pairs) {
     var i, m = [];
+    /* ---- read pass ---- */
     for (i = 0; i < pairs.length; i++) {
       var u = pairs[i].u, el = pairs[i].el;
       if (!el) continue;
-      var ur = u.host.getBoundingClientRect();
       var tr = el.getBoundingClientRect();
-      if (!ur.width || !tr.width) continue;
-      m.push({ u: u, ur: ur, tr: tr });
+      if (!tr.width) continue;
+      /* The RIG's matrix, not the host's box.
+       *
+       * Deriving the beam's mouth from `host.getBoundingClientRect()` was
+       * close but always slightly off, because the host box knows nothing
+       * about the transforms INSIDE the saucer: the root bobs by up to nine
+       * units and the rig tilts by up to six degrees, both continuously. The
+       * beam hangs off the rig, so its true mouth moves with them while the
+       * computed one did not — a small, permanent, drifting offset.
+       *
+       * The rig's own screen matrix accounts for every one of those, plus the
+       * layer's pan and zoom, exactly and for free. */
+      var ctm = u.beam.parentNode.getScreenCTM();
+      if (!ctm) continue;
+      m.push({ u: u, tr: tr, inv: ctm.inverse() });
     }
+    /* ---- write pass ---- */
     for (i = 0; i < m.length; i++) {
       var a = m[i], U = a.u;
-      /* the beam's mouth, in screen px: the middle of the saucer's belly.
-         The viewBox is `-20 0 240 320`, so x=100 sits 120 units in. */
-      var scale = a.ur.width / 240;
-      var mouthX = a.ur.left + 120 * scale;
-      var mouthY = a.ur.top + U.beamY0 * scale;
+      /* the creature's middle, expressed in the rig's own coordinates */
+      var p = U.svg.createSVGPoint();
+      p.x = a.tr.left + a.tr.width / 2;
+      p.y = a.tr.top + a.tr.height * 0.45;
+      p = p.matrixTransform(a.inv);
 
-      var dx = a.tr.left + a.tr.width / 2 - mouthX;
-      var dy = a.tr.top + a.tr.height * 0.45 - mouthY;
+      var dx = p.x - 100;
+      var dy = p.y - U.beamY0;
       var dist = Math.sqrt(dx * dx + dy * dy);
-      var nominal = (U.beamY1 - U.beamY0) * scale;   // length at scaleY 1
+      var nominal = U.beamY1 - U.beamY0;   // local units; no screen scale needed
 
       /* Swing the beam out of the belly and stretch it so its far end lands
          ON the creature rather than somewhere near it. */
       gsap.set(U.beam, {
         transformOrigin: '100px ' + U.beamY0 + 'px',
         rotation: -Math.atan2(dx, dy) * 180 / Math.PI,
-        scaleY: XY.clamp(dist / Math.max(1, nominal), 0.18, 1.6),
+        scaleY: XY.clamp(dist / nominal, 0.18, 1.6),
       });
     }
   }
