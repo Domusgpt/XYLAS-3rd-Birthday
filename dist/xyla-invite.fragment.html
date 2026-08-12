@@ -213,6 +213,16 @@ body.calm .layer.is-defocused { filter: none; }
   padding: 12px 20px;
   min-height: 44px;                /* thumb-sized, always */
   transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+  /* Not all of these are buttons. "Get directions" is an <a>, because it
+     navigates — and an anchor brings its own underline and its own text
+     alignment, which made it the one odd-looking control on the card. Setting
+     these here rather than on that one link means any future link-button is
+     right by construction. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  text-decoration: none;
 }
 .btn:active { transform: translateY(1px) scale(.98); }
 
@@ -685,7 +695,7 @@ body.calm .actor { animation: none !important; }
       <dt>Where</dt><dd>1044 West Bay Ave, Barnegat, NJ 08005</dd>
       <dt>Bring</dt><dd>Swimsuit, towel, and your best pirate face</dd>
       <dt>RSVP by</dt><dd>ASAP, please!</dd>
-      <dt>RSVP</dt><dd><a href="mailto:mom@example.com">mom@example.com</a></dd>
+      <dt>RSVP</dt><dd><a href="mailto:Maryhennedy1@gmail.com">Maryhennedy1@gmail.com</a></dd>
     </dl>
 <!--/NOSCRIPT-DETAILS-->
   </div>
@@ -752,7 +762,10 @@ window.XY.CONFIG = {
        politely hides itself until you know the real date.
        Format: 'YYYY-MM-DDTHH:MM'  (local time, no timezone, no Z)          */
     startISO: '2026-08-28T15:00',
-    endISO: '2026-08-28T18:00',          // a guess, only used by the .ics file
+    /* Only used by the .ics. Late-August sunset in Barnegat is about 7:40pm,
+       and the card promises "'til the sun goes down" — an 18:00 end put a
+       party in everyone's calendar that finished two hours early. */
+    endISO: '2026-08-28T19:30',
   },
 
   /* ---- Photos -----------------------------------------------------------
@@ -767,7 +780,7 @@ window.XY.CONFIG = {
   /* ---- RSVP: how replies reach Mom -------------------------------------- */
   RSVP: {
     /* REQUIRED — where RSVPs go. */
-    to: 'mom@example.com',
+    to: 'Maryhennedy1@gmail.com',
     toName: 'Mom',
     subject: "RSVP: Xyla's 3rd Birthday",
 

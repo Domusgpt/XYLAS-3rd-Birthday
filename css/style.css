@@ -210,6 +210,16 @@ body.calm .layer.is-defocused { filter: none; }
   padding: 12px 20px;
   min-height: 44px;                /* thumb-sized, always */
   transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+  /* Not all of these are buttons. "Get directions" is an <a>, because it
+     navigates — and an anchor brings its own underline and its own text
+     alignment, which made it the one odd-looking control on the card. Setting
+     these here rather than on that one link means any future link-button is
+     right by construction. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  text-decoration: none;
 }
 .btn:active { transform: translateY(1px) scale(.98); }
 

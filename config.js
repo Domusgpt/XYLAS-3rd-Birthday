@@ -30,7 +30,10 @@ window.XY.CONFIG = {
        politely hides itself until you know the real date.
        Format: 'YYYY-MM-DDTHH:MM'  (local time, no timezone, no Z)          */
     startISO: '2026-08-28T15:00',
-    endISO: '2026-08-28T18:00',          // a guess, only used by the .ics file
+    /* Only used by the .ics. Late-August sunset in Barnegat is about 7:40pm,
+       and the card promises "'til the sun goes down" — an 18:00 end put a
+       party in everyone's calendar that finished two hours early. */
+    endISO: '2026-08-28T19:30',
   },
 
   /* ---- Photos -----------------------------------------------------------
@@ -45,7 +48,7 @@ window.XY.CONFIG = {
   /* ---- RSVP: how replies reach Mom -------------------------------------- */
   RSVP: {
     /* REQUIRED — where RSVPs go. */
-    to: 'mom@example.com',
+    to: 'Maryhennedy1@gmail.com',
     toName: 'Mom',
     subject: "RSVP: Xyla's 3rd Birthday",
 
