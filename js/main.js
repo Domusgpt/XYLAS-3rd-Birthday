@@ -75,7 +75,8 @@
        presses play still learns whose birthday it is and when. */
     XY.Invite.renderCoverFacts(
       document.getElementById('cover-facts'),
-      document.getElementById('brand-when'));
+      document.getElementById('brand-when'),
+      document.getElementById('gate-when'));
 
     /* ---- sky ---- */
     var sky = new XY.Sky(R.sky, quality);
@@ -277,20 +278,29 @@
 
     var muteBtn = document.getElementById('btn-mute');
     if (!C.FLAGS.audioButton) muteBtn.hidden = true;
-    muteBtn.addEventListener('click', function () {
-      if (!audio.ready && !audio.init()) return;
-      audio.setOn(!audio.on);
+    /* The button has to be able to show a state it did not itself cause —
+       the music now starts on its own at the gate — so the label lives in one
+       function that both paths call. */
+    function syncMute() {
       muteBtn.setAttribute('aria-pressed', String(audio.on));
       muteBtn.textContent = audio.on ? '♪' : '♪̸';
       muteBtn.setAttribute('aria-label', audio.on ? 'Turn music off' : 'Turn music on');
+    }
+    muteBtn.addEventListener('click', function () {
+      if (!audio.ready && !audio.init()) return;
+      audio.setOn(!audio.on);
+      syncMute();
     });
 
     var calmBtn = document.getElementById('btn-calm');
     calmBtn.addEventListener('click', function () {
       reduced = !reduced;
       calmBtn.setAttribute('aria-pressed', String(reduced));
-      if (reduced) { master.pause(); master.progress(1); confetti.clear(); }
-      else master.restart();
+      if (reduced) {
+        master.pause(); master.progress(1); confetti.clear();
+        /* calm means calm — the music goes too, not just the motion */
+        if (audio.on) { audio.setOn(false); syncMute(); }
+      } else master.restart();
       syncPlay();
     });
 
@@ -466,6 +476,20 @@
     function begin() {
       R.gate.hidden = true;
       if (C.FLAGS.tiltEnabled) parallax.enableTilt();
+
+      /* Music starts here, not on the ♪ button.
+       *
+       * This tap is the only guaranteed user gesture the page ever gets, and
+       * a WebAudio context created outside one is born suspended on every
+       * mobile browser — so "autoplay from the start" has to mean "from the
+       * moment they open it". `init()` returns false where WebAudio is
+       * missing, in which case the music simply never starts and the button
+       * still says so. Calm mode never gets sound. */
+      if (!reduced && C.FLAGS.musicAutoplay !== false && audio.init()) {
+        audio.setOn(true);
+        syncMute();
+      }
+
       if (!reduced && C.FLAGS.autoplay !== false) master.play();
       syncPlay();
     }

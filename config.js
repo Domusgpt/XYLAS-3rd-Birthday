@@ -80,10 +80,20 @@ window.XY.CONFIG = {
     fleetSize: 5,
   },
 
+  /* ---- Behaviour --------------------------------------------------------
+   * audioButton   : show the music on/off button in the controls
+   * musicAutoplay : start the music box as soon as the invitation is opened.
+   *                 It can only ever start on that first tap — browsers will
+   *                 not let a page make sound before you touch it — so this
+   *                 rides the "Open the invitation" button. Set false and the
+   *                 music waits for the ♪ button instead.
+   * autoplay      : play the story automatically once opened
+   * tiltEnabled   : let the phone's tilt drive the parallax (asks on iOS)   */
   FLAGS: {
     audioButton: true,
+    musicAutoplay: true,
+    autoplay: true,
     tiltEnabled: true,
-    secretPartyMode: true,
     forceQuality: null,
   },
 };

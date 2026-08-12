@@ -308,9 +308,17 @@
     return t ? d + ' · ' + t : d;
   }
 
-  function renderCoverFacts(coverEl, brandEl) {
+  function renderCoverFacts(coverEl, brandEl, gateEl) {
     var p = C.PARTY, child = C.CHILD;
     if (brandEl) brandEl.textContent = shortWhen();
+    /* The gate is the first screen anyone sees and plenty of people will read
+       it and never tap. It gets the full date, not the abbreviated one. */
+    if (gateEl) {
+      var g = [];
+      if (!isPlaceholder(p.dateDisplay)) g.push(p.dateDisplay);
+      if (!isPlaceholder(p.timeDisplay)) g.push(p.timeDisplay);
+      gateEl.textContent = g.join(' · ');
+    }
     if (!coverEl) return;
 
     var bits = [];

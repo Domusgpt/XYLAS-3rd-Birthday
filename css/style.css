@@ -511,6 +511,13 @@ body.calm .layer.is-defocused { filter: none; }
 }
 #gate .gate-inner { display: grid; gap: 20px; justify-items: center; }
 #gate p { margin: 0; font-size: 16px; font-weight: 700; color: #4A3A6B; }
+#gate .gate-when {
+  margin: .7em 0 0;
+  font-size: clamp(17px, 4.4vw, 23px);
+  font-weight: 800;
+  color: var(--leaf);
+}
+#gate .gate-when:empty { display: none; }
 
 /* ============================ NO-JS / FALLBACK =========================== */
 

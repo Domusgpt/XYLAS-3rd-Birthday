@@ -6,6 +6,19 @@
 <title>Xyla is turning 3 — you’re invited</title>
 <meta name="description" content="An invitation to Xyla’s 3rd birthday party.">
 <meta name="theme-color" content="#FFD84D">
+
+<!-- Link previews. Without these, texting the invitation to somebody unfurls
+     as a naked storage.googleapis.com URL, which looks like spam rather than
+     like an invitation. Title and description are rewritten from config.js at
+     build time along with the noscript block.
+     Deliberately NO og:image: that would push a photograph of a three-year-old
+     into every unfurl cache that touches the link. -->
+<!--SHARE-META-->
+<meta property="og:type" content="website">
+<meta property="og:title" content="Xyla is turning 3 — you’re invited">
+<meta property="og:description" content="A butterfly-pirate-robot-dinosaur pool party.">
+<meta name="twitter:card" content="summary">
+<!--/SHARE-META-->
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍋</text></svg>">
 <link rel="stylesheet" href="css/style.css">
 </head>
@@ -98,24 +111,33 @@
     <div class="storytitle" style="margin:0">
       <p class="kicker">You are invited to</p>
       <h1 style="font-size:clamp(34px,10vw,72px)">Xyla’s 3rd Birthday</h1>
+      <!-- The date belongs on the very first screen. Plenty of people will
+           read this and never tap anything. Filled from CONFIG at boot. -->
+      <p class="gate-when" id="gate-when"></p>
     </div>
     <button type="button" class="btn btn-primary btn-big" id="btn-open"
             style="max-width:320px">Open the invitation</button>
-    <p>Tap to begin the story</p>
+    <p>Tap to begin — it plays with music</p>
   </div>
 </div>
 
+<!-- The details for anyone without JavaScript — and for link previews and
+     search crawlers, which do not run the story either. The values between
+     the markers are REPLACED AT BUILD TIME from config.js by tools/build.js;
+     editing them here by hand will just be overwritten. -->
 <noscript>
   <div class="card noscript-card">
     <h1>Xyla is turning 3!</h1>
-    <p>You’re invited to a butterfly-pirate-robot-dinosaur party.</p>
+    <p>You’re invited to a butterfly-pirate-robot-dinosaur pool party.</p>
     <p>This invitation has an animated story, which needs JavaScript — but the
        important part is right here:</p>
+    <!--NOSCRIPT-DETAILS-->
     <dl>
       <dt>When</dt><dd>Date here · Time here</dd>
       <dt>Where</dt><dd>Place here, Address here</dd>
       <dt>RSVP</dt><dd><a href="mailto:mom@example.com">mom@example.com</a></dd>
     </dl>
+    <!--/NOSCRIPT-DETAILS-->
   </div>
 </noscript>
 

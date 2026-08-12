@@ -105,18 +105,45 @@
     return svg;
   }
 
-  function buildMid(el, rand) {
+  /* --------------------------------------------------------------------------
+   *  Where the water sits, in the mid scene's own coordinates.
+   *
+   *  That scene is a 1000x600 box drawn with `slice`, so on a tall phone it is
+   *  scaled up ~1.4x to cover the height and then cropped hard horizontally.
+   *  With the waves hardcoded at y=470-556 that put the entire Lemon Sea into
+   *  the bottom fifth of a phone screen — underneath the narration plate and
+   *  the controls, i.e. invisible on the device most people will open this on.
+   *
+   *  So the waterline is computed from the viewport instead of assumed: it is
+   *  placed at ~70% of the screen height whatever the aspect ratio, which is
+   *  clear of the narration and still low enough to read as a horizon.
+   * ------------------------------------------------------------------------*/
+  function midMetrics() {
+    var vw = window.innerWidth, vh = window.innerHeight;
+    var scale = Math.max(vw / 1000, vh / 600);   // `slice` covers, so max
+    var visW = vw / scale;                       // how much of the 1000 shows
+    return {
+      scale: scale,
+      visW: visW,
+      xMin: 500 - visW / 2,
+      xMax: 500 + visW / 2,
+      waterline: XY.clamp(0.70 * vh / scale, 300, 470),
+    };
+  }
+
+  function buildMid(el, rand, M) {
     var svg = sceneSVG('scene-mid');
+    var w = M.waterline;
     /* the Lemon Sea: three bands of scalloped waves */
     var seas = [
-      { y: 470, fill: '#A8D8FF', op: 0.85, bumps: 13, d: 16 },
-      { y: 512, fill: '#7EC8E3', op: 0.9,  bumps: 10, d: 20 },
-      { y: 556, fill: '#4EA3C6', op: 0.95, bumps: 8,  d: 22 },
+      { y: w,      fill: '#A8D8FF', op: 0.85, bumps: 13, d: 16 },
+      { y: w + 42, fill: '#7EC8E3', op: 0.9,  bumps: 10, d: 20 },
+      { y: w + 86, fill: '#4EA3C6', op: 0.95, bumps: 8,  d: 22 },
     ];
     var waves = [];
     seas.forEach(function (s) {
       var pts = path.scallop(-80, s.y, 1080, s.y, s.bumps, s.d, false);
-      pts = pts.concat([[1080, 640], [-80, 640]]);
+      pts = pts.concat([[1080, 900], [-80, 900]]);
       var node = XY.svgEl('path', { d: path.closedSpline(pts, 0.8), fill: s.fill, opacity: s.op });
       svg.appendChild(node);
       waves.push(node);
@@ -195,11 +222,21 @@
 
     if (R.stars) buildStars(R.stars, rand);
     buildFar(R.far, rand);
-    this.mid = buildMid(R.mid, rand);
+    var M = this.midM = midMetrics();
+    this.mid = buildMid(R.mid, rand, M);
 
-    /* the ship rides on the middle sea band */
+    /* The ship, sized and placed from the same metrics as the water.
+       Its own art spans x 30..170 and y -50..104, so those constants are what
+       turn "about a quarter of the screen tall, sitting in the waves" into a
+       scale and an offset. Hardcoding 1.1 made it half a phone screen wide
+       with its hull below the fold. */
     this.ship = buildShip(rand);
-    this.ship.setAttribute('transform', 'translate(340, 380) scale(1.1)');
+    var sScale = XY.clamp(0.26 * window.innerHeight / (154 * M.scale), 0.7, 1.4);
+    var sY = M.waterline + 26 - 104 * sScale;
+    this.shipScale = sScale;
+    this.shipHome = M.xMin + 0.45 * M.visW - 110 * sScale;
+    this.ship.setAttribute('transform',
+      'translate(' + this.shipHome.toFixed(1) + ', ' + sY.toFixed(1) + ') scale(' + sScale.toFixed(3) + ')');
     this.mid.svg.appendChild(this.ship);
 
     /* ---- the crew ---- */
@@ -363,8 +400,14 @@
     /* ---------------- ACT 1 — the Lemon Sea ---------------- */
     tl.to(title, { autoAlpha: 0, y: -50, scale: 0.9, duration: 1.0, ease: 'power2.in' }, 5.4);
     /* the ship sails in and rocks */
-    tl.fromTo(this.ship, { x: -520, y: 380, rotation: -3 },
-      { x: 340, duration: 4.2, ease: 'power1.inOut' }, 5.8);
+    /* Sail in from off the visible left edge to the ship's home position.
+       These are absolute viewBox coordinates, not the raw -520 -> 340 that
+       used to be here: on a phone `slice` crops the box to roughly x 361..638,
+       so the old numbers sailed the ship past the window entirely and it was
+       still off-screen when the narration announced it. */
+    tl.fromTo(this.ship,
+      { x: this.midM.xMin - 240 - 110 * this.shipScale, rotation: -3 },
+      { x: this.shipHome, duration: 3.4, ease: 'power1.inOut' }, 5.6);
     /* a real rock on the swell, rather than sliding across like a decal */
     tl.to(this.ship, { rotation: 3.5, duration: 1.35, repeat: 3, yoyo: true,
                        ease: 'sine.inOut', transformOrigin: '100px 90px' }, 5.8);

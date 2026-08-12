@@ -66,6 +66,71 @@ if (fs.existsSync(path.join(root, 'assets'))) {
   }
 }
 
+/* ---------------------------------------------------------------------------
+ *  Bake the real party details into the parts of the page that JavaScript
+ *  never gets to touch.
+ *
+ *  The <noscript> card and the Open Graph tags are static HTML by definition:
+ *  a visitor with JS off, a link-preview bot, and a search crawler all see the
+ *  markup exactly as shipped. They were hardcoded with "Date here" and
+ *  mom@example.com, which meant the one audience that cannot be fixed at
+ *  runtime was the one being shown placeholder text.
+ *
+ *  config.js is the single source of truth, so it is read here rather than
+ *  duplicated. It is a plain assignment to a global, so a tiny sandbox is
+ *  enough to evaluate it — no parser, no dependency.
+ * ------------------------------------------------------------------------ */
+const CONFIG = (() => {
+  const sandbox = { window: {} };
+  new Function('window', read('config.js')).call(sandbox, sandbox.window);
+  return sandbox.window.XY ? sandbox.window.XY.CONFIG : null;
+})();
+
+const esc = (s) => String(s == null ? '' : s)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;');
+/* Anything still reading "… here" is an unfilled placeholder — say so plainly
+   rather than printing the placeholder as if it were the venue. */
+const filled = (v) => (v && !/\bhere\b/i.test(String(v))) ? String(v) : null;
+
+const between = (open, close, replacement) => {
+  const re = new RegExp(`<!--${open}-->[\\s\\S]*?<!--${close}-->`);
+  if (!re.test(html)) { console.log(`  ! ${open} marker missing — skipped`); return; }
+  html = html.replace(re, `<!--${open}-->\n${replacement}\n<!--${close}-->`);
+};
+
+if (CONFIG) {
+  const p = CONFIG.PARTY, child = CONFIG.CHILD, rsvp = CONFIG.RSVP;
+  const when = [filled(p.dateDisplay), filled(p.timeDisplay)].filter(Boolean).join(' · ');
+  const where = [filled(p.venue), filled(p.address)].filter(Boolean).join(', ');
+  const rows = [
+    ['When', esc(when) || 'To be confirmed'],
+    ['Where', esc(where) || 'To be confirmed'],
+    filled(p.bring) ? ['Bring', esc(p.bring)] : null,
+    filled(p.rsvpByDisplay) ? ['RSVP by', esc(p.rsvpByDisplay)] : null,
+    ['RSVP', `<a href="mailto:${esc(rsvp.to)}">${esc(rsvp.to)}</a>`],
+  ].filter(Boolean);
+  between('NOSCRIPT-DETAILS', '/NOSCRIPT-DETAILS',
+    '<dl>\n' + rows.map(([k, v]) => `      <dt>${k}</dt><dd>${v}</dd>`).join('\n') + '\n    </dl>');
+
+  const title = `${esc(child.name)} is turning ${esc(String(child.age))} — you’re invited`;
+  const desc = [when, 'A butterfly-pirate-robot-dinosaur pool party.']
+    .filter(Boolean).join(' · ');
+  between('SHARE-META', '/SHARE-META', [
+    '<meta property="og:type" content="website">',
+    `<meta property="og:title" content="${esc(title)}">`,
+    `<meta property="og:description" content="${esc(desc)}">`,
+    '<meta name="twitter:card" content="summary">',
+    `<meta name="twitter:title" content="${esc(title)}">`,
+    `<meta name="twitter:description" content="${esc(desc)}">`,
+  ].join('\n'));
+  html = html.replace(/<meta name="description" content="[^"]*">/,
+    `<meta name="description" content="${esc(desc)}">`);
+  console.log(`  baked details into <noscript> and share tags`);
+} else {
+  console.log('  ! could not read config.js — static details left as-is');
+}
+
 /* Tell the page it is sandboxed. rsvp.js reads this and forces the RSVP to
    mailto, because a sandboxed page cannot reach a form-POST endpoint and the
    submission would fail silently. */
