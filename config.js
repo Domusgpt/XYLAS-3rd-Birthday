@@ -20,11 +20,11 @@ window.XY.CONFIG = {
   PARTY: {
     dateDisplay: 'Friday, August 28th',
     timeDisplay: '3:00pm ’til the sun goes down',
-    venue: 'Place here',                 // e.g. 'The Big Backyard'
-    address: 'Address here',             // e.g. '12 Lemon Grove Ln, Somewhere'
+    venue: '1044 West Bay Ave',          // street line, shown large
+    address: 'Barnegat, NJ 08005',       // town line, shown smaller beneath
     bring: 'Swimsuit, towel, and your best pirate face',
-    notes: 'Notes here',                 // e.g. 'There will be cake'
-    rsvpByDisplay: 'RSVP by date here',  // e.g. 'RSVP by August 21st'
+    notes: 'Parking on 8th St',          // e.g. 'There will be cake'
+    rsvpByDisplay: 'ASAP, please!',      // e.g. 'RSVP by August 21st'
 
     /* For the "Add to calendar" button. Leave both null and the button
        politely hides itself until you know the real date.

@@ -22,6 +22,22 @@
     return !v || /\bhere\b/i.test(String(v));
   }
 
+  /* The full address as one string, or '' when it is still a placeholder. */
+  function fullAddress() {
+    var p = C.PARTY;
+    return [p.venue, p.address]
+      .filter(function (v) { return v && !isPlaceholder(v); })
+      .join(', ');
+  }
+
+  /* The documented cross-platform Maps URL: it hands off to the native app on
+     iOS and Android and opens the web map on desktop, with no per-platform
+     sniffing and nothing to break if an app is missing. */
+  function mapsURL() {
+    var a = fullAddress();
+    return a ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(a) : '';
+  }
+
   function fieldRow(label, value, extraClass) {
     if (!value) return '';
     var ph = isPlaceholder(value) ? ' is-placeholder' : '';
@@ -59,6 +75,13 @@
       '</dl>' +
       '<div class="card-actions">' +
         '<button type="button" class="btn btn-primary" data-act="rsvp">RSVP to the party</button>' +
+        /* Directions beat a clipboard. Guests are driving to a street address;
+           nobody wants the text of it, they want the map open. Rendered only
+           when there is a real address to point at. */
+        (mapsURL()
+          ? '<a class="btn btn-ghost" data-act="map" href="' + XY.esc(mapsURL()) + '" ' +
+            'target="_blank" rel="noopener">Get directions</a>'
+          : '') +
         '<button type="button" class="btn btn-ghost" data-act="copy">Copy address</button>' +
         '<button type="button" class="btn btn-ghost" data-act="ics" hidden>Add to calendar</button>' +
       '</div>' +
@@ -346,6 +369,8 @@
     buildICS: buildICS,
     downloadICS: downloadICS,
     isPlaceholder: isPlaceholder,
+    fullAddress: fullAddress,
+    mapsURL: mapsURL,
   };
 
 })(window.XY = window.XY || {});

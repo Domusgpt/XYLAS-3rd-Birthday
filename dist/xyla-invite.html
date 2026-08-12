@@ -708,8 +708,9 @@ body.calm .actor { animation: none !important; }
     <!--NOSCRIPT-DETAILS-->
 <dl>
       <dt>When</dt><dd>Friday, August 28th · 3:00pm ’til the sun goes down</dd>
-      <dt>Where</dt><dd>To be confirmed</dd>
+      <dt>Where</dt><dd>1044 West Bay Ave, Barnegat, NJ 08005</dd>
       <dt>Bring</dt><dd>Swimsuit, towel, and your best pirate face</dd>
+      <dt>RSVP by</dt><dd>ASAP, please!</dd>
       <dt>RSVP</dt><dd><a href="mailto:mom@example.com">mom@example.com</a></dd>
     </dl>
 <!--/NOSCRIPT-DETAILS-->
@@ -767,11 +768,11 @@ window.XY.CONFIG = {
   PARTY: {
     dateDisplay: 'Friday, August 28th',
     timeDisplay: '3:00pm ’til the sun goes down',
-    venue: 'Place here',                 // e.g. 'The Big Backyard'
-    address: 'Address here',             // e.g. '12 Lemon Grove Ln, Somewhere'
+    venue: '1044 West Bay Ave',          // street line, shown large
+    address: 'Barnegat, NJ 08005',       // town line, shown smaller beneath
     bring: 'Swimsuit, towel, and your best pirate face',
-    notes: 'Notes here',                 // e.g. 'There will be cake'
-    rsvpByDisplay: 'RSVP by date here',  // e.g. 'RSVP by August 21st'
+    notes: 'Parking on 8th St',          // e.g. 'There will be cake'
+    rsvpByDisplay: 'ASAP, please!',      // e.g. 'RSVP by August 21st'
 
     /* For the "Add to calendar" button. Leave both null and the button
        politely hides itself until you know the real date.
@@ -3740,6 +3741,22 @@ window.XY.CONFIG = {
     return !v || /\bhere\b/i.test(String(v));
   }
 
+  /* The full address as one string, or '' when it is still a placeholder. */
+  function fullAddress() {
+    var p = C.PARTY;
+    return [p.venue, p.address]
+      .filter(function (v) { return v && !isPlaceholder(v); })
+      .join(', ');
+  }
+
+  /* The documented cross-platform Maps URL: it hands off to the native app on
+     iOS and Android and opens the web map on desktop, with no per-platform
+     sniffing and nothing to break if an app is missing. */
+  function mapsURL() {
+    var a = fullAddress();
+    return a ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(a) : '';
+  }
+
   function fieldRow(label, value, extraClass) {
     if (!value) return '';
     var ph = isPlaceholder(value) ? ' is-placeholder' : '';
@@ -3777,6 +3794,13 @@ window.XY.CONFIG = {
       '</dl>' +
       '<div class="card-actions">' +
         '<button type="button" class="btn btn-primary" data-act="rsvp">RSVP to the party</button>' +
+        /* Directions beat a clipboard. Guests are driving to a street address;
+           nobody wants the text of it, they want the map open. Rendered only
+           when there is a real address to point at. */
+        (mapsURL()
+          ? '<a class="btn btn-ghost" data-act="map" href="' + XY.esc(mapsURL()) + '" ' +
+            'target="_blank" rel="noopener">Get directions</a>'
+          : '') +
         '<button type="button" class="btn btn-ghost" data-act="copy">Copy address</button>' +
         '<button type="button" class="btn btn-ghost" data-act="ics" hidden>Add to calendar</button>' +
       '</div>' +
@@ -4064,6 +4088,8 @@ window.XY.CONFIG = {
     buildICS: buildICS,
     downloadICS: downloadICS,
     isPlaceholder: isPlaceholder,
+    fullAddress: fullAddress,
+    mapsURL: mapsURL,
   };
 
 })(window.XY = window.XY || {});
@@ -4834,7 +4860,7 @@ window.XY.CONFIG = {
         R.rsvp.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
         R.rsvp.querySelector('#rsvp-name').focus();
       } else if (b.dataset.act === 'copy') {
-        var addr = [C.PARTY.venue, C.PARTY.address].filter(Boolean).join(', ');
+        var addr = XY.Invite.fullAddress();
         if (navigator.clipboard) {
           navigator.clipboard.writeText(addr).then(function () {
             status.textContent = 'Address copied.';

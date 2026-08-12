@@ -172,7 +172,7 @@
         R.rsvp.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
         R.rsvp.querySelector('#rsvp-name').focus();
       } else if (b.dataset.act === 'copy') {
-        var addr = [C.PARTY.venue, C.PARTY.address].filter(Boolean).join(', ');
+        var addr = XY.Invite.fullAddress();
         if (navigator.clipboard) {
           navigator.clipboard.writeText(addr).then(function () {
             status.textContent = 'Address copied.';
