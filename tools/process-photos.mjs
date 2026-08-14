@@ -51,7 +51,18 @@ const CDP = 9921;
 /* Which photo becomes what. Crops were chosen by eye against the cutouts:
    the medallion is cropped tight enough to lose the beach towel she is
    holding, which the segmentation model quite reasonably keeps. */
-const JOBS = [
+/* Regenerate a single asset with `--only <out-name>`:
+ *
+ *     node tools/process-photos.mjs --only xyla-hero.webp
+ *
+ * Without this the tool rebuilds EVERY job, which is how the card portrait got
+ * silently replaced while only the hero was meant to change. */
+const ONLY = (() => {
+  const i = process.argv.indexOf('--only');
+  return i >= 0 ? process.argv[i + 1] : null;
+})();
+
+const ALL_JOBS = [
   /* The hero. Replaced at grandma's request: the previous photo's shirt was
      stained, and this one has her in the lemon-print swimsuit — which is the
      Lemon Sea the whole story is named after, so the hero finally matches the
@@ -59,9 +70,29 @@ const JOBS = [
      load-bearing, because the tricorn is placed over the cut to hide it. */
   { file: 'xyla-lemon-beach.jpg', out: 'xyla-hero.webp',
     crop: null, maxEdge: 760, quality: 0.86 },
+  /* WARNING — this `crop` is NOT reproducible.
+   *
+   * It is applied in the coordinates of the TRIMMED cutout, i.e. relative to
+   * the opaque bounding box of the segmentation mask. The model runs on WASM
+   * across 4 threads and is not bit-identical between runs, so a few pixels of
+   * difference at the edge of the mask move the trim origin and drag this fixed
+   * box with them. On a tall full-body photo that translated the whole crop and
+   * turned a portrait into a close-up of the top of her hair.
+   *
+   * The committed .webp is the reviewed one. If this ever genuinely needs
+   * regenerating, do not re-tune these four numbers — centre the crop on the
+   * head instead, using the neck-finding logic in tools/measure-cutout.mjs,
+   * so it self-centres no matter how the mask lands. */
   { file: 'PXL_20260731_205420658.jpg', out: 'xyla-medallion.webp',
     crop: { x: 10, y: 60, w: 420, h: 420 }, maxEdge: 460, quality: 0.88 },
 ];
+
+const JOBS = ONLY ? ALL_JOBS.filter((j) => j.out === ONLY) : ALL_JOBS;
+if (ONLY && !JOBS.length) {
+  console.error(`no job named "${ONLY}". known: ` + ALL_JOBS.map((j) => j.out).join(', '));
+  process.exit(1);
+}
+if (ONLY) console.log('  only:', ONLY);
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (...a) => console.log('  ', ...a);
