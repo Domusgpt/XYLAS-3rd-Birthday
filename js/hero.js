@@ -322,12 +322,24 @@
    *  land: she was halfway to flying before anyone drew anything.
    * ======================================================================== */
 
-  /* Measured off the cutout (572x760). If the photo is ever re-cropped these
-     are the numbers to revisit. */
+  /* ------------------------------------------------------------------------
+   *  Measured off the cutout by `node tools/measure-cutout.mjs`, not by eye.
+   *  Re-run it if the photograph ever changes and paste the numbers it prints.
+   *
+   *  The important one is `cropW`. This photo is framed so that the TOP OF HER
+   *  HEAD IS OUTSIDE THE PICTURE — the cutout meets the top edge in a flat
+   *  301px line. That would normally be a ruined cutout. Here it is the whole
+   *  trick: the tricorn is placed over that line and sized to overhang it, so
+   *  the hat's crown stands in for the part of her head the camera missed. It
+   *  also means the hat's scale is derived from a real measurement of her head
+   *  rather than guessed, which is why it sits like a hat instead of a sticker.
+   * ----------------------------------------------------------------------*/
   var PH = {
-    w: 572, h: 760,
-    headCX: 319, headCY: 190, headW: 220,
-    backCX: 290, backCY: 400,     // where the wings sprout
+    w: 515, h: 760,
+    headCX: 171, headCY: 73, headW: 317,
+    cropLo: 21, cropHi: 321, cropW: 301,   // the flat cut across the top
+    neckY: 146,                            // narrowest row: head above, body below
+    backCX: 252, backCY: 430,              // where the wings sprout
   };
 
   /* --------------------------------------------------------------------------
@@ -376,8 +388,11 @@
     ['L', 'R'].forEach(function (side) {
       var dir = side === 'L' ? -1 : 1;
       var ax = PH.backCX + dir * 26;
-      var upAng = -0.78;                       // mirrored by `dir` inside wingPath
-      var upLen = 400;
+      /* Flatter and shorter than the previous photo's wings. She is turned and
+         her head sits high in this frame, so a steep sweep put the left
+         forewing straight through her hat. */
+      var upAng = -0.64;                       // mirrored by `dir` inside wingPath
+      var upLen = 350;
       /* wings are long and narrow; a spread near 1 rounds them into balloons */
       var spread = 0.58;
 
@@ -403,14 +418,14 @@
 
     /* a warm halo so she sits in the sky rather than on top of it */
     s.glow = {
-      d: path.blob(PH.headCX, 340, 330, 340, { points: 14, wobble: 0.04, rand: rand }),
+      d: path.blob(PH.w * 0.5, PH.h * 0.46, 320, 340, { points: 14, wobble: 0.04, rand: rand }),
       fill: '#FFD84D', opacity: 0.1
     };
 
     /* sparkles around her */
     for (var k = 0; k < 7; k++) {
-      var a = rand.range(0, XY.TAU), r = rand.range(280, 430);
-      spots.push(path.star(PH.headCX + Math.cos(a) * r, 330 + Math.sin(a) * r * 0.85,
+      var a = rand.range(0, XY.TAU), r = rand.range(300, 440);
+      spots.push(path.star(PH.w * 0.5 + Math.cos(a) * r, PH.h * 0.45 + Math.sin(a) * r * 0.85,
                            rand.range(9, 17), rand.range(3, 6), 4, rand.range(0, 1)));
     }
     s.sparkles = { d: spots.join(' '), fill: '#FFF8EE', opacity: 0.85 };
@@ -470,8 +485,32 @@
     if (withHat && XY.Creature && XY.Creature.shapes) {
       var S = XY.Creature.shapes;
       var hatG = XY.svgEl('g', { class: 'hero-hat' });
-      var hw = PH.headW * 0.52;
-      var hx = PH.headCX + 4, hy = PH.headCY - PH.headW * 0.66;
+      /* ------------------------------------------------------------------
+       *  Placed FROM THE CROP LINE, not from a guessed head-top.
+       *
+       *  `tricornPath(100, 40, 58)` spans 116 authored units across, and its
+       *  turned-up tips sit 10 units ABOVE the centre line while the middle of
+       *  the brim hangs 17 below. So the tips are the part that can leave the
+       *  flat cut showing, and they are what the placement solves for: drop the
+       *  hat until the tips clear y=0, then add a few pixels of overlap so
+       *  there is no seam. The brim is also made wider than the cut, so it
+       *  overhangs both ends rather than meeting them exactly.
+       * ----------------------------------------------------------------*/
+      var HAT_OVERHANG = 1.16;
+      var brimW = PH.cropW * HAT_OVERHANG;
+      var kx = brimW / 116;
+      /* Foreshortened vertically, and it has to be. At uniform scale a brim
+         wide enough to overhang the cut is also ~140px tall, and she only has
+         about 60px of forehead in shot — so the hat covered her eyes, which
+         is precisely the thing nobody wants to do to a photograph of a child.
+         Squashing it also happens to be truer to the camera: this was taken
+         level with her, not above, so a real hat brim would foreshorten. */
+      var ky = kx * 0.68;
+      var hw = brimW / 2;
+      /* +6 because her head tilts: the crop line's midpoint sits a few pixels
+         left of where her face centres at eye level. */
+      var hx = (PH.cropLo + PH.cropHi) / 2 + 6;
+      var hy = 10 * ky + 8;
       var mk = function (d, fill, stroke, op) {
         var p = XY.svgEl('path', { d: d, fill: fill, opacity: op === undefined ? 1 : op });
         if (stroke) {
@@ -483,10 +522,8 @@
         hatG.appendChild(p);
         return p;
       };
-      /* the hat shapes are authored around a 200-unit creature; scale to fit */
-      var k = hw / 60;
       var inner = XY.svgEl('g', {
-        transform: 'translate(' + hx + ',' + hy + ') scale(' + k.toFixed(3) + ') translate(-100,-40)'
+        transform: 'translate(' + hx + ',' + hy + ') scale(' + kx.toFixed(3) + ',' + ky.toFixed(3) + ') translate(-100,-40)'
       });
       var mkI = function (d, fill, stroke, op) {
         var p = XY.svgEl('path', { d: d, fill: fill, opacity: op === undefined ? 1 : op });

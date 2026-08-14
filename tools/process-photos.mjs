@@ -38,6 +38,11 @@ import http from 'node:http';
 
 const ROOT = resolve('.');
 const WORK = process.env.XY_WORK || '/tmp/xy-photos';
+/* Where the source photographs live. Defaults to the repo root, where the
+   first two originals sit — but a source can live anywhere, which is how the
+   lemon-swimsuit hero is processed without adding a third full-resolution
+   photograph of a small child to a public repository. Only the cutout ships. */
+const SRC = process.env.XY_PHOTOS || join(ROOT, 'photos-src');
 const CHROME = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 const MODEL = 'briaai/RMBG-1.4';
 const PORT = 8791;
@@ -47,7 +52,12 @@ const CDP = 9921;
    the medallion is cropped tight enough to lose the beach towel she is
    holding, which the segmentation model quite reasonably keeps. */
 const JOBS = [
-  { file: 'PXL_20260709_221913803.jpg', out: 'xyla-hero.webp',
+  /* The hero. Replaced at grandma's request: the previous photo's shirt was
+     stained, and this one has her in the lemon-print swimsuit — which is the
+     Lemon Sea the whole story is named after, so the hero finally matches the
+     tale. Her head is cropped by the top of the frame; that is deliberate and
+     load-bearing, because the tricorn is placed over the cut to hide it. */
+  { file: 'xyla-lemon-beach.jpg', out: 'xyla-hero.webp',
     crop: null, maxEdge: 760, quality: 0.86 },
   { file: 'PXL_20260731_205420658.jpg', out: 'xyla-medallion.webp',
     crop: { x: 10, y: 60, w: 420, h: 420 }, maxEdge: 460, quality: 0.88 },
@@ -169,7 +179,11 @@ const server = http.createServer((req, res) => {
     return;
   }
   let p;
-  if (u.startsWith('/photos/')) p = join(ROOT, u.slice(8));
+  if (u.startsWith('/photos/')) {
+    /* look in the external source dir first, then the repo root */
+    p = join(SRC, u.slice(8));
+    if (!existsSync(p)) p = join(ROOT, u.slice(8));
+  }
   else if (u.startsWith('/dist/')) p = join(WORK, 'node_modules/@huggingface/transformers/dist', u.slice(6));
   else if (u.startsWith('/models/')) p = join(WORK, 'models', u.slice(8));
   else p = join(WORK, 'page.html');
