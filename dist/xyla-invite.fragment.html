@@ -2551,7 +2551,11 @@ window.XY.CONFIG = {
          so a third of her declared width was empty padding and she rendered
          far smaller than the CSS size suggested. This still clears the wings
          and the sparkle ring, and nothing else. */
-      viewBox: '-96 -56 764 856', class: 'creature hero hero-photo',
+      /* The top is -210, not -56: the tricorn now sits above the cropped head
+         and reaches roughly y=-120 with its peaks. `overflow: visible` would
+         still paint it, but a viewBox that actually contains its content keeps
+         the actor's own box honest. */
+      viewBox: '-96 -210 764 1010', class: 'creature hero hero-photo',
       'aria-hidden': 'true', focusable: 'false', overflow: 'visible'
     });
     var root = XY.svgEl('g', { class: 'c-root' });
@@ -2603,21 +2607,38 @@ window.XY.CONFIG = {
        *  there is no seam. The brim is also made wider than the cut, so it
        *  overhangs both ends rather than meeting them exactly.
        * ----------------------------------------------------------------*/
-      var HAT_OVERHANG = 1.16;
+      /* ------------------------------------------------------------------
+       *  The hat SITS ON the cut, it does not come down over it.
+       *
+       *  Her head carries on above the top of the frame, so the hat belongs in
+       *  that missing space — resting on the crop line, not pulled down onto
+       *  her face. Getting that right is fiddlier than it sounds, because the
+       *  tricorn's lower edge is a curve, not a straight line: measured from
+       *  its centre it hangs +17 in the middle, +15 at 0.45w, +9 at 0.9w, and
+       *  the turned-up peaks at ±w ride 10 ABOVE centre.
+       *
+       *  So "rest it on the line" has no single answer — the brim meets a
+       *  horizontal at a different height depending where you measure. Solving
+       *  at the centre leaves the ends floating and the flat cut shows under
+       *  them. Solving at the peaks (the first attempt) buries her forehead.
+       *
+       *  Solve it where the CUT ENDS, since that is the only span that has to
+       *  be met: half the cut is ~150px, which at this scale lands around
+       *  0.66w along the brim, where the lower edge sits about +12.
+       * ----------------------------------------------------------------*/
+      var HAT_OVERHANG = 1.5;                  // brim vs the width of the cut
+      var BRIM_AT_CUT = 12;                    // lower edge at ~0.66w, in authored units
       var brimW = PH.cropW * HAT_OVERHANG;
       var kx = brimW / 116;
-      /* Foreshortened vertically, and it has to be. At uniform scale a brim
-         wide enough to overhang the cut is also ~140px tall, and she only has
-         about 60px of forehead in shot — so the hat covered her eyes, which
-         is precisely the thing nobody wants to do to a photograph of a child.
-         Squashing it also happens to be truer to the camera: this was taken
-         level with her, not above, so a real hat brim would foreshorten. */
-      var ky = kx * 0.68;
+      /* Only mildly foreshortened now. The heavy squash existed because the hat
+         was competing for forehead room; sitting above the crop it has none of
+         that constraint and can look like a proper hat again. */
+      var ky = kx * 0.85;
       var hw = brimW / 2;
       /* +6 because her head tilts: the crop line's midpoint sits a few pixels
          left of where her face centres at eye level. */
       var hx = (PH.cropLo + PH.cropHi) / 2 + 6;
-      var hy = 10 * ky + 8;
+      var hy = 3 - BRIM_AT_CUT * ky;
       var mk = function (d, fill, stroke, op) {
         var p = XY.svgEl('path', { d: d, fill: fill, opacity: op === undefined ? 1 : op });
         if (stroke) {
@@ -4427,7 +4448,10 @@ window.XY.CONFIG = {
     hhost.style.left = '50%';
     /* High enough that at her new size — and under the Act 5 push-in — her
        feet stay above the narration plate instead of running off the bottom. */
-    hhost.style.top = '33%';
+    /* 27%, not 33%: the hero viewBox grew upward to contain the tricorn now
+       that it sits above her cropped head, and a taller box pushes the photo
+       down within it. This puts her back where she was on screen. */
+    hhost.style.top = '27%';
     hhost.style.zIndex = '90';
     gsap.set(hhost, { xPercent: -50, autoAlpha: 0, scale: 0.4 });
     gsap.set(R.three, { xPercent: -50, autoAlpha: 0 });

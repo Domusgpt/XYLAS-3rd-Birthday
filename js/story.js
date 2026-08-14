@@ -305,7 +305,10 @@
     hhost.style.left = '50%';
     /* High enough that at her new size — and under the Act 5 push-in — her
        feet stay above the narration plate instead of running off the bottom. */
-    hhost.style.top = '33%';
+    /* 27%, not 33%: the hero viewBox grew upward to contain the tricorn now
+       that it sits above her cropped head, and a taller box pushes the photo
+       down within it. This puts her back where she was on screen. */
+    hhost.style.top = '27%';
     hhost.style.zIndex = '90';
     gsap.set(hhost, { xPercent: -50, autoAlpha: 0, scale: 0.4 });
     gsap.set(R.three, { xPercent: -50, autoAlpha: 0 });
