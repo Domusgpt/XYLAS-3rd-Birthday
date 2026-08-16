@@ -36,14 +36,17 @@ const argv = process.argv.slice(2);
 const argOf = (n, d) => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : d; };
 
 const token = argOf('--token', process.env.HF_TOKEN);
-const owner = argOf('--owner', 'gen-rl-millz');
-const name = argOf('--name', 'xyla-birthday');
+const owner = argOf('--owner', 'Xylas3rd');
+const name = argOf('--name', 'birthday');
 const file = resolve(argOf('--file', 'dist/xyla-invite.html'));
 const message = argOf('--message', 'Update the invitation');
 if (!token) { console.error('need $HF_TOKEN (or --token) with repo.write'); process.exit(1); }
 
 const repo = `${owner}/${name}`;
-const liveURL = `https://${owner}-${name}.static.hf.space`;
+/* Lowercased deliberately. The repo path keeps the owner's real casing, but the
+   hostname does not — DNS is case-insensitive, so a printed "Xylas3rd-…" works
+   yet looks like a typo in a text message. This URL gets pasted to guests. */
+const liveURL = `https://${owner}-${name}.static.hf.space`.toLowerCase();
 const api = (p, init) => fetch(`https://huggingface.co${p}`, {
   ...init,
   headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json', ...(init?.headers || {}) },
