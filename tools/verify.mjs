@@ -24,6 +24,21 @@ const argv = process.argv.slice(2);
 const argOf = (n, d) => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : d; };
 
 const target = argOf('--target', 'index.html');
+/* A target may be a path in the repo OR a full http(s) URL, so the same
+   assertions that gate a build can be pointed at the page a host is actually
+   serving. "the file I uploaded is correct" and "the URL people will open is
+   correct" are different claims, and only the second one matters on the day.
+
+   Caveat for this dev container specifically: its headless Chromium cannot
+   reach the outside world (every navigation returns ERR_CONNECTION_RESET),
+   so a URL target only works from a machine with direct network. The way to
+   check a deploy from in here is to curl the live page down and render THAT
+   file — which splits the claim in two and proves both halves:
+     curl -o live.html https://…/index.html   # what the host serves
+     node tools/verify.mjs --target live.html # and that those bytes run     */
+const pageURL = (t) => (/^https?:\/\//.test(target)
+  ? `${target}${target.includes('?') ? '&' : '?'}auto=1&seek=${t}`
+  : `file://${root}/${target}?auto=1&seek=${t}`);
 const outDir = resolve(root, 'tools/shots');
 const port = 9333 + (process.pid % 200);
 mkdirSync(outDir, { recursive: true });
@@ -116,8 +131,7 @@ async function main() {
       /* seek goes in the QUERY, not the hash: two URLs differing only by
          fragment are a same-document navigation, so the page would never
          reload and every later screenshot would reuse the first frame. */
-      const url = `file://${root}/${target}?auto=1&seek=${t}`;
-      await send('Page.navigate', { url });
+      await send('Page.navigate', { url: pageURL(t) });
       await sleep(1400);
       /* confirm the app actually booted rather than screenshotting a blank */
       const ready = await send('Runtime.evaluate', {
@@ -133,7 +147,7 @@ async function main() {
 
   /* ---- a layout assertion that a screenshot cannot make for itself ---- */
   await send('Emulation.setDeviceMetricsOverride', { ...DEVICES.phone, screenWidth: 390, screenHeight: 844 });
-  await send('Page.navigate', { url: `file://${root}/${target}?auto=1&seek=43` });
+  await send('Page.navigate', { url: pageURL(43) });
   await sleep(1400);
   const overflow = await send('Runtime.evaluate', {
     expression: `(function(){
