@@ -27,7 +27,7 @@
  *  because re-running a publish after a build that changed nothing is a normal
  *  thing to do and should not look like a failure.
  * ==========================================================================*/
-import { readFileSync, writeFileSync, mkdtempSync, rmSync, copyFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdtempSync, rmSync, copyFileSync, readdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -98,6 +98,17 @@ try {
 
   copyFileSync(file, join(dir, 'index.html'));
   writeFileSync(join(dir, 'README.md'), README);
+
+  /* Remove anything this script did not put there. Hugging Face seeds a new
+     Space from a template that includes its own style.css, which then sits in
+     the repo forever, unreferenced, looking like it might matter. Pruning
+     means the Space's contents are exactly what this script wrote — so what is
+     being served is never a question of what was left behind. */
+  for (const f of readdirSync(dir)) {
+    if (f === '.git' || f === 'index.html' || f === 'README.md' || f === '.gitattributes') continue;
+    rmSync(join(dir, f), { recursive: true, force: true });
+    console.log(`pruned ${f} (left over from the Space template)`);
+  }
 
   git('add', '-A');
   if (!git('status', '--porcelain').trim()) {
